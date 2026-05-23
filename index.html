@@ -98,12 +98,12 @@
           <tbody>
             <tr>
               <td style="font-style:italic;color:var(--text-muted);font-size:0.85rem">Censo total</td>
-              <td><input type="text" id="census-total" placeholder="0" oninput="formatVoteInput(this);updateCensus('total')" onfocus="onVoteFocus(this)" onblur="onVoteBlur(this)"></td>
+              <td><input type="text" id="census-total" placeholder="0" style="text-align:right" oninput="formatVoteInput(this);updateCensus('total')" onfocus="onVoteFocus(this)" onblur="onVoteBlur(this)"></td>
               <td class="pct-cell">100%</td>
             </tr>
             <tr class="special-row">
               <td style="font-style:italic;color:var(--text-muted);font-size:0.85rem">No votantes (abstención)</td>
-              <td><input type="text" id="abstention" placeholder="0" oninput="formatVoteInput(this);updateCensus('abstention')" onfocus="onVoteFocus(this)" onblur="onVoteBlur(this)"></td>
+              <td><input type="text" id="abstention" placeholder="0" style="text-align:right" oninput="formatVoteInput(this);updateCensus('abstention')" onfocus="onVoteFocus(this)" onblur="onVoteBlur(this)"></td>
               <td class="pct-cell" id="abstention-pct">—</td>
             </tr>
           </tbody>

@@ -98,6 +98,9 @@ function switchTab(tabName) {
 
 /* ── FÓRMULA ─────────────────────────────────────────────── */
 
+let _seatsBeforeMajority = 350;
+let _inMajorityMode = false;
+
 function buildFormulaSelect() {
   const sel = document.getElementById('formula-select');
   [{ key: 'maj', label: 'Sistemas mayoritarios' }, { key: 'pr', label: 'Sistemas proporcionales' }].forEach(g => {
@@ -128,8 +131,18 @@ function updateFormulaDesc() {
     srContainer.style.display = 'none';
   }
 
+  const nowMajority = val === 'majority' || val === 'majority_round2';
+  const seatsInput  = document.getElementById('seats');
+  if (nowMajority && !_inMajorityMode) {
+    _seatsBeforeMajority = parseInt(seatsInput.value) || 350;
+    seatsInput.value = 1;
+  } else if (!nowMajority && _inMajorityMode) {
+    seatsInput.value = _seatsBeforeMajority;
+  }
+  _inMajorityMode = nowMajority;
+
   const bonus = document.getElementById('bonus-field');
-  bonus.style.display = (val === 'majority' || val === 'majority_round2') ? 'none' : 'block';
+  bonus.style.display = nowMajority ? 'none' : 'block';
 }
 
 /* ── PARÁMETROS ──────────────────────────────────────────── */
