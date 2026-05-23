@@ -165,14 +165,14 @@ function displayResults(allocated, totalValid, totalSeats, formula, excludedBarr
     const diffColor = diff > 0 ? 'color:#6b2020' : diff < 0 ? 'color:#20506b' : 'color:var(--text-muted)';
     const barW     = Math.min(p.seats / totalSeats * 100 * 1.8, 120);
     const color    = p.color || '#888888';
-    const siglasHtml = p.siglas
-      ? `<span style="font-size:0.65rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;padding:1px 4px;border:1px solid var(--border);border-radius:3px;background:var(--accent-bg);color:var(--text-muted);white-space:nowrap;flex-shrink:0;font-family:'Source Sans 3',sans-serif">${p.siglas}</span>`
+    const siglasPrefixHtml = p.siglas
+      ? `<span class="result-siglas-prefix" style="${(typeof siglasVisible !== 'undefined' && siglasVisible) ? '' : 'display:none'}">${p.siglas}-</span>`
       : '';
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td style="font-size:0.88rem">
         <div style="display:flex;align-items:center;gap:6px">
-          <span class="color-swatch" style="background:${color}"></span>${siglasHtml}<span>${p.name}</span>
+          <span class="color-swatch" style="background:${color}"></span><span>${siglasPrefixHtml}${p.name}</span>
         </div>
       </td>
       <td style="text-align:right;font-variant-numeric:tabular-nums;font-size:0.82rem">${p.votes.toLocaleString('es-ES')}</td>

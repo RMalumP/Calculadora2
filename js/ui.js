@@ -3,6 +3,24 @@
  * Controles de interfaz: tabs, parámetros, reinicio, guardado, teoría, drag & drop.
  */
 
+/* ── SIGLAS ───────────────────────────────────────────────── */
+
+let siglasVisible = false;
+
+function toggleSiglasVisibility() {
+  siglasVisible = !siglasVisible;
+  const btn = document.getElementById('siglas-toggle-btn');
+  if (btn) btn.textContent = siglasVisible ? 'Siglas ▲' : 'Siglas ▼';
+
+  document.querySelectorAll('#votes-body .siglas-input').forEach(inp => {
+    inp.classList.toggle('siglas-visible', siglasVisible);
+  });
+
+  document.querySelectorAll('.result-siglas-prefix').forEach(el => {
+    el.style.display = siglasVisible ? '' : 'none';
+  });
+}
+
 /* ── TABS ─────────────────────────────────────────────────── */
 
 function switchTab(tabName) {

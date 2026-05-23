@@ -128,8 +128,11 @@ input[type="number"] { text-align: right; }
   width: 44px;
   flex-shrink: 0;
   font-size: 0.8rem;
-  display: inline-block;
+  display: none;
   text-transform: uppercase;
+}
+#votes-table .siglas-input.siglas-visible {
+  display: inline-block;
 }
 
 input[type="color"] {
