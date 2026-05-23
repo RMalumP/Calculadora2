@@ -69,7 +69,10 @@ function _buildRow(name, votes, color, isOtros) {
         <div class="otros-dropdown" style="display:none"></div>
         <input type="text" value="Otros partidos" readonly style="display:none">
        </div>`
-    : `<input type="text" placeholder="Nombre del partido" value="${name}">`;
+    : `<div style="display:flex;align-items:center;gap:4px;width:100%">
+        <input type="text" class="siglas-input" placeholder="Sig." maxlength="6" style="width:44px;display:none;flex-shrink:0;font-size:0.8rem" oninput="this.value=this.value.toUpperCase()">
+        <input type="text" class="name-input" placeholder="Nombre del partido" value="${name}" style="flex:1;min-width:0">
+       </div>`;
 
   const actionsCell = isOtros ? '' :
     '<div class="row-actions">' +
@@ -112,7 +115,7 @@ function _buildRow(name, votes, color, isOtros) {
       this.title = !isLocked ? 'Bloqueado: no se absorberá automáticamente' : 'Bloquear absorción automática';
     });
 
-    const nameInput = tr.querySelector('input[type=text]');
+    const nameInput = tr.querySelector('.name-input');
     nameInput.addEventListener('input', function () {
       const otrosRow = getOrCreateOtrosRow();
       const prevOfOtros = otrosRow.previousElementSibling;
@@ -123,6 +126,11 @@ function _buildRow(name, votes, color, isOtros) {
     });
 
     tr.querySelector('input[type=color]').addEventListener('input', updateSecondRoundIfActive);
+
+    if (typeof siglasVisible !== 'undefined' && siglasVisible) {
+      const siglasInp = tr.querySelector('.siglas-input');
+      if (siglasInp) siglasInp.style.display = 'inline-block';
+    }
   }
 
   return tr;
@@ -267,12 +275,13 @@ function syncManualFromMain(newTotal) {
 }
 
 function moveRowToOtros(tr) {
-  const name  = tr.querySelector('input[type=text]')?.value.trim() || _nextSinNombre();
-  const votes = parseFloat(tr.querySelector('input[type=number]')?.value) || 0;
-  const color = tr.querySelector('input[type=color]')?.value || '#888888';
+  const name   = tr.querySelector('.name-input')?.value.trim() || _nextSinNombre();
+  const siglas = tr.querySelector('.siglas-input')?.value.trim() || '';
+  const votes  = parseFloat(tr.querySelector('input[type=number]')?.value) || 0;
+  const color  = tr.querySelector('input[type=color]')?.value || '#888888';
 
   const already = otrosAbsorbedParties.find(p => !p.isManual && p.name === name);
-  if (!already) otrosAbsorbedParties.push({ name, votes, color });
+  if (!already) otrosAbsorbedParties.push({ name, siglas, votes, color });
 
   tr.remove();
   enforceOtrosLast();
@@ -284,7 +293,11 @@ function ejectFromOtros(idx) {
   const p = otrosAbsorbedParties[idx];
   if (!p || p.isManual) return;
   otrosAbsorbedParties.splice(idx, 1);
-  _insertBeforeOtros(p.name, p.votes, p.color, false);
+  const tr = _insertBeforeOtros(p.name, p.votes, p.color, false);
+  if (p.siglas) {
+    const siglasInp = tr.querySelector('.siglas-input');
+    if (siglasInp) siglasInp.value = p.siglas;
+  }
   recalcOtrosTotal();
   updateOtrosDropdown();
 }
