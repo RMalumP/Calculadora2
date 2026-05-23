@@ -45,7 +45,7 @@ function calculate() {
   allRows.forEach(tr => {
     if (tr.dataset.isOtros) return;
     let name     = tr.querySelector('.name-input')?.value.trim() || '';
-    const siglas = tr.querySelector('.siglas-input')?.value.trim() || '';
+    let siglas   = tr.querySelector('.siglas-input')?.value.trim() || '';
     const votes  = parseFloat(tr.querySelector('input[type=number]')?.value) || 0;
     const color  = tr.querySelector('input[type=color]')?.value || '#888888';
     if (!name && votes === 0) return;
@@ -54,7 +54,7 @@ function calculate() {
       name = 'Partido ' + roman;
       tr.querySelector('.name-input').value = name;
       const siglasInp = tr.querySelector('.siglas-input');
-      if (siglasInp && !siglasInp.value.trim()) siglasInp.value = roman;
+      if (siglasInp && !siglasInp.value.trim()) { siglasInp.value = roman; siglas = roman; }
       existingNames.add(name);
       unnamedCounter++;
       while (existingNames.has('Partido ' + toRoman(unnamedCounter))) unnamedCounter++;
