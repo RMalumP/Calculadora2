@@ -10,12 +10,12 @@ function updateTotals() {
   rows.forEach(tr => {
     const input = tr.dataset.isOtros
       ? tr.querySelector('input[data-otros-main]')
-      : tr.querySelector('input[type=number]');
-    sumParty += parseFloat(input?.value) || 0;
+      : tr.querySelector('.votes-input');
+    sumParty += parseVoteValue(input?.value);
   });
 
-  const blank = parseFloat(document.getElementById('blank-votes').value) || 0;
-  const nullv  = parseFloat(document.getElementById('null-votes').value) || 0;
+  const blank = parseVoteValue(document.getElementById('blank-votes').value);
+  const nullv  = parseVoteValue(document.getElementById('null-votes').value);
   const totalValid = sumParty + blank;
   const totalAll   = totalValid + nullv;
 
@@ -44,8 +44,8 @@ function updateTotals() {
   rows.forEach(tr => {
     const input = tr.dataset.isOtros
       ? tr.querySelector('input[data-otros-main]')
-      : tr.querySelector('input[type=number]');
-    const v = parseFloat(input?.value) || 0;
+      : tr.querySelector('.votes-input');
+    const v = parseVoteValue(input?.value);
     tr.querySelector('.pct-display').innerHTML = totalValid > 0 ? pctBar(v / totalValid * 100) : '—';
   });
 
@@ -55,7 +55,7 @@ function updateTotals() {
 
 function updateCensus(source) {
   const totalValid = _parseTotalValid();
-  const nullv      = parseFloat(document.getElementById('null-votes').value) || 0;
+  const nullv      = parseVoteValue(document.getElementById('null-votes').value);
   const totalAll   = totalValid + nullv;
   const censusInput = document.getElementById('census-total');
   const abstInput   = document.getElementById('abstention');
@@ -78,7 +78,7 @@ function updateCensus(source) {
 
 function updateParticipation() {
   const totalValid = _parseTotalValid();
-  const nullv      = parseFloat(document.getElementById('null-votes').value) || 0;
+  const nullv      = parseVoteValue(document.getElementById('null-votes').value);
   const totalAll   = totalValid + nullv;
   const census     = parseFloat(document.getElementById('census-total').value) || 0;
   const abst       = parseFloat(document.getElementById('abstention').value) || 0;

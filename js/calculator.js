@@ -28,8 +28,8 @@ function calculate() {
   const allRows   = getAllPartyRows();
   const otrosRow  = getOrCreateOtrosRow();
   const otrosVotesInput  = otrosRow.querySelector('input[data-otros-main]');
-  const otrosManualVotes = parseFloat(otrosVotesInput?.value) || 0;
-  const blank = parseFloat(document.getElementById('blank-votes').value) || 0;
+  const otrosManualVotes = parseVoteValue(otrosVotesInput?.value);
+  const blank = parseVoteValue(document.getElementById('blank-votes').value);
 
   const existingNames = new Set();
   allRows.forEach(tr => {
@@ -46,7 +46,7 @@ function calculate() {
     if (tr.dataset.isOtros) return;
     let name     = tr.querySelector('.name-input')?.value.trim() || '';
     let siglas   = tr.querySelector('.siglas-input')?.value.trim() || '';
-    const votes  = parseFloat(tr.querySelector('input[type=number]')?.value) || 0;
+    const votes  = parseVoteValue(tr.querySelector('.votes-input')?.value);
     const color  = tr.querySelector('input[type=color]')?.value || '#888888';
     if (!name && votes === 0) return;
     if (!name && votes > 0) {
@@ -114,7 +114,7 @@ function calculate() {
 
   otrosAbsorbedParties = [...absorbedMap.values()];
   const otrosAccumulatedVotes = otrosAbsorbedParties.reduce((s, p) => s + p.votes, 0);
-  if (otrosVotesInput) otrosVotesInput.value = otrosAccumulatedVotes > 0 ? otrosAccumulatedVotes : '';
+  if (otrosVotesInput) otrosVotesInput.value = otrosAccumulatedVotes > 0 ? Math.min(otrosAccumulatedVotes, 9000000000).toLocaleString('es-ES') : '';
 
   enforceOtrosLast();
   updateOtrosDropdown();
@@ -218,7 +218,7 @@ function highlightInputTable(allocated, formula) {
     const winnerName = allocated.find(a => a.seats > 0)?.name;
     inputRows.forEach(tr => {
       const name  = tr.querySelector('.name-input')?.value.trim();
-      const votes = parseFloat(tr.querySelector('input[type=number]')?.value) || 0;
+      const votes = parseVoteValue(tr.querySelector('.votes-input')?.value);
       if (name && votes > 0) {
         if (!srNames.has(name)) tr.classList.add('no-seats');
         else if (name !== winnerName) tr.classList.add('barrier-blocked');
@@ -359,7 +359,7 @@ function prepareSecondRound() {
   rows.forEach(tr => {
     if (tr.dataset.isOtros) return;
     let name   = tr.querySelector('.name-input')?.value.trim() || '';
-    const votes = parseFloat(tr.querySelector('input[type=number]').value) || 0;
+    const votes = parseVoteValue(tr.querySelector('.votes-input')?.value);
     const color = tr.querySelector('input[type=color]')?.value || '#888888';
     if (!name && votes > 0) {
       const roman = toRoman(unnamedCounter);

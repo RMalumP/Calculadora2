@@ -23,6 +23,17 @@ function toRoman(num) {
   return result;
 }
 
+/* ── Votos: parseo y formato ── */
+
+function parseVoteValue(val) {
+  return parseInt(String(val || '').replace(/[^\d]/g, ''), 10) || 0;
+}
+
+function formatVoteInput(input) {
+  const num = parseVoteValue(input.value);
+  input.value = num > 0 ? Math.min(num, 9000000000).toLocaleString('es-ES') : '';
+}
+
 function _nextSinNombre() {
   const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   let n = _sinNombreCounter++, label = '';
@@ -84,21 +95,24 @@ function _buildRow(name, votes, color, isOtros) {
     ? '<span style="width:18px;display:inline-block"></span>'
     : '<span class="drag-handle" title="Arrastrar para reordenar">⠿</span>';
 
+  const votesFmt = parseVoteValue(votes) > 0
+    ? Math.min(parseVoteValue(votes), 9000000000).toLocaleString('es-ES') : '';
+
   tr.innerHTML = `
     <td style="white-space:nowrap;padding:2px 2px 2px 4px">${dragHandle}${deleteButton}</td>
     <td style="text-align:center;padding:1px 2px">${actionsCell}</td>
     <td style="text-align:center;padding:4px 6px"><input type="color" value="${colorVal}" title="Color del partido" ${isOtros ? 'disabled style="cursor:not-allowed"' : ''}></td>
     <td>${nameCell}</td>
-    <td><input type="number" min="0" placeholder="0" value="${votes}" ${isOtros ? 'data-otros-main="true"' : ''} oninput="updateTotals(); updateSecondRoundIfActive();"></td>
+    <td><input type="text" inputmode="numeric" class="votes-input" placeholder="0" value="${votesFmt}" ${isOtros ? 'data-otros-main="true"' : ''} oninput="formatVoteInput(this);updateTotals();updateSecondRoundIfActive();"></td>
     <td class="pct-cell pct-display">—</td>`;
 
   // Lógica especial para "Otros partidos"
   if (isOtros) {
     const otrosVotesInput = tr.querySelector('input[data-otros-main]');
     otrosVotesInput.addEventListener('input', function () {
-      const entered = parseFloat(this.value) || 0;
+      const entered = parseVoteValue(this.value);
       const corrected = syncManualFromMain(entered);
-      if (corrected !== entered) this.value = corrected || '';
+      if (corrected !== entered) this.value = corrected > 0 ? Math.min(corrected, 9000000000).toLocaleString('es-ES') : '';
       updateOtrosDropdown();
       updateTotals();
       updateSecondRoundIfActive();
@@ -228,12 +242,13 @@ function updateOtrosDropdown() {
     item.appendChild(nameSpan);
 
     const votesInput = document.createElement('input');
-    votesInput.type = 'number';
-    votesInput.min = '0';
+    votesInput.type = 'text';
+    votesInput.setAttribute('inputmode', 'numeric');
     votesInput.className = 'otros-item-votes-input';
-    votesInput.value = p.votes;
+    votesInput.value = p.votes > 0 ? p.votes.toLocaleString('es-ES') : '';
     votesInput.addEventListener('input', function () {
-      otrosAbsorbedParties[idx].votes = parseFloat(this.value) || 0;
+      formatVoteInput(this);
+      otrosAbsorbedParties[idx].votes = parseVoteValue(this.value);
       recalcOtrosTotal();
     });
     item.appendChild(votesInput);
@@ -259,7 +274,7 @@ function recalcOtrosTotal() {
   const mainInput = otrosRow.querySelector('input[data-otros-main]');
   if (!mainInput) return;
   const total = otrosAbsorbedParties.reduce((s, p) => s + (p.votes || 0), 0);
-  mainInput.value = total > 0 ? total : '';
+  mainInput.value = total > 0 ? Math.min(total, 9000000000).toLocaleString('es-ES') : '';
   updateTotals();
 }
 
@@ -281,7 +296,7 @@ function syncManualFromMain(newTotal) {
 function moveRowToOtros(tr) {
   const name   = tr.querySelector('.name-input')?.value.trim() || _nextSinNombre();
   const siglas = tr.querySelector('.siglas-input')?.value.trim() || '';
-  const votes  = parseFloat(tr.querySelector('input[type=number]')?.value) || 0;
+  const votes  = parseVoteValue(tr.querySelector('.votes-input')?.value);
   const color  = tr.querySelector('input[type=color]')?.value || '#888888';
 
   const already = otrosAbsorbedParties.find(p => !p.isManual && p.name === name);
