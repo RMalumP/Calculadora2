@@ -42,7 +42,7 @@ function toggleSiglasVisibility() {
     namesHidden = false;
     if (hideNamesBtn) hideNamesBtn.textContent = 'Ocultar nombre';
     document.querySelectorAll('#votes-body .name-input').forEach(inp => {
-      inp.style.color = '';
+      inp.classList.remove('names-hidden-mode');
     });
     document.querySelectorAll('.result-party-name').forEach(el => {
       el.style.display = '';
@@ -60,7 +60,7 @@ function toggleHideNames() {
 
   // Tabla de votos: solo cambiar color, el nombre sigue visible
   document.querySelectorAll('#votes-body .name-input').forEach(inp => {
-    inp.style.color = namesHidden ? '#8b3131' : '';
+    inp.classList.toggle('names-hidden-mode', namesHidden);
   });
 
   // Tabla de escaños: ocultar/mostrar el nombre del partido

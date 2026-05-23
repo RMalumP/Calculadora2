@@ -169,7 +169,7 @@ function _buildRow(name, votes, color, isOtros) {
     }
     if (typeof namesHidden !== 'undefined' && namesHidden) {
       const nameInp = tr.querySelector('.name-input');
-      if (nameInp) nameInp.style.color = '#8b3131';
+      if (nameInp) nameInp.classList.add('names-hidden-mode');
     }
   }
 

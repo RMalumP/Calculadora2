@@ -23,7 +23,7 @@ function addPactometerRow(name = '', seats = '', color = '', block = '', siglas 
     <td style="text-align:center;padding:4px 6px"><input type="color" value="${colorVal}" title="Color del partido" onchange="updateHemicycle()"></td>
     <td><div style="display:flex;align-items:center;gap:4px;width:100%">
       <input type="text" class="pact-siglas-input" placeholder="Sig." maxlength="6" value="${siglas}" style="width:44px;flex-shrink:0;font-size:0.8rem;border:none;background:transparent;font-family:'Source Sans 3',sans-serif;outline:none;text-transform:uppercase;${pactSiglasVisible ? '' : 'display:none'}" oninput="this.value=this.value.toUpperCase()">
-      <input type="text" class="pact-name-input" placeholder="Nombre del partido" value="${name}" style="flex:1;min-width:0;border:none;background:transparent;font-family:'Source Sans 3',sans-serif;font-size:14px;outline:none;${pactNamesHidden ? 'color:#8b3131' : 'color:var(--text)'}">
+      <input type="text" class="pact-name-input${pactNamesHidden ? ' names-hidden-mode' : ''}" placeholder="Nombre del partido" value="${name}" style="flex:1;min-width:0;border:none;background:transparent;font-family:'Source Sans 3',sans-serif;font-size:14px;outline:none;color:inherit">
     </div></td>
     <td style="text-align:center"><input type="number" min="0" placeholder="0" value="${seats}" style="text-align:center;font-size:1.1rem;font-weight:600" oninput="updateHemicycle()"></td>
     <td style="text-align:center">
@@ -355,7 +355,7 @@ function togglePactSiglasVisibility() {
     pactNamesHidden = false;
     if (hideNamesBtn) hideNamesBtn.textContent = 'Ocultar nombre';
     document.querySelectorAll('#pactometer-body .pact-name-input').forEach(inp => {
-      inp.style.color = '';
+      inp.classList.remove('names-hidden-mode');
     });
   }
 }
@@ -366,7 +366,7 @@ function togglePactHideNames() {
   if (btn) btn.textContent = pactNamesHidden ? 'Mostrar nombre' : 'Ocultar nombre';
 
   document.querySelectorAll('#pactometer-body .pact-name-input').forEach(inp => {
-    inp.style.color = pactNamesHidden ? '#8b3131' : '';
+    inp.classList.toggle('names-hidden-mode', pactNamesHidden);
   });
 }
 

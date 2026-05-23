@@ -233,3 +233,7 @@ input[type="color"]::-webkit-color-swatch { border: none; border-radius: 1px; }
   font-weight: 700;
   color: var(--accent);
 }
+
+/* ── OCULTAR NOMBRE ─────────────────────────────────────────── */
+input.names-hidden-mode { color: #8b3131; }
+input.names-hidden-mode::placeholder { color: #8b3131; }
