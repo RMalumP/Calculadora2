@@ -139,6 +139,12 @@ function updateHemicycle() {
   if (totalSeats === 0) {
     ['left-block','right-block'].forEach(id => { document.getElementById(id).style.width = '0%'; });
     ['left-label','right-label','majority-label'].forEach(id => { document.getElementById(id).textContent = ''; });
+    const ls = document.getElementById('hemicycle-left-swatches');
+    const rs = document.getElementById('hemicycle-right-swatches');
+    if (ls) ls.innerHTML = '';
+    if (rs) rs.innerHTML = '';
+    const sep = document.getElementById('block-separator');
+    if (sep) sep.style.display = 'none';
     return;
   }
 
@@ -159,6 +165,38 @@ function updateHemicycle() {
   document.getElementById('right-block').style.background = createHorizontalGradient(rightColors, rightSeats, true);
   document.getElementById('left-label').textContent  = leftSeats  || '';
   document.getElementById('right-label').textContent = rightSeats || '';
+
+  // Swatches encima del hemiciclo
+  const leftSwatches = document.getElementById('hemicycle-left-swatches');
+  const rightSwatches = document.getElementById('hemicycle-right-swatches');
+  if (leftSwatches) {
+    leftSwatches.innerHTML = '';
+    leftColors.forEach(p => {
+      const box = document.createElement('div');
+      box.style.cssText = `width:16px;height:16px;background:${p.color};border:1px solid rgba(0,0,0,0.2);border-radius:3px;flex-shrink:0`;
+      leftSwatches.appendChild(box);
+    });
+  }
+  if (rightSwatches) {
+    rightSwatches.innerHTML = '';
+    rightColors.forEach(p => {
+      const box = document.createElement('div');
+      box.style.cssText = `width:16px;height:16px;background:${p.color};border:1px solid rgba(0,0,0,0.2);border-radius:3px;flex-shrink:0`;
+      rightSwatches.appendChild(box);
+    });
+  }
+
+  // Doble línea separadora cuando los bloques se tocan
+  const separator = document.getElementById('block-separator');
+  if (separator) {
+    const touching = leftSeats > 0 && rightSeats > 0 && (leftPercent + rightPercent) >= 99.5;
+    if (touching) {
+      separator.style.display = 'block';
+      separator.style.left = `calc(${leftPercent}% - 3px)`;
+    } else {
+      separator.style.display = 'none';
+    }
+  }
 
   // Estado de mayoría
   _updateMajorityStatus(leftSeats, rightSeats, totalSeats, majority);
@@ -223,12 +261,18 @@ function _updateHemicycleSettings(leftSeats, rightSeats, totalSeats, absoluteMaj
     const congressRoundSelect = document.getElementById('congress-round');
     if (congressRoundSelect) {
       if (isConcejalesMode) {
-        congressRoundSelect.innerHTML = '<option value="first">Mayoría absoluta</option>';
+        if (congressRoundSelect.options.length !== 1 || congressRoundSelect.options[0].value !== 'first') {
+          congressRoundSelect.innerHTML = '<option value="first">Mayoría absoluta</option>';
+        }
         congressRoundSelect.disabled = true;
       } else {
-        congressRoundSelect.innerHTML = `
-          <option value="first">Primera vuelta - Mayoría absoluta</option>
-          <option value="second">Segunda vuelta - Mayoría simple</option>`;
+        if (congressRoundSelect.options.length !== 2) {
+          const savedVal = congressRoundSelect.value;
+          congressRoundSelect.innerHTML = `
+            <option value="first">Primera vuelta - Mayoría absoluta</option>
+            <option value="second">Segunda vuelta - Mayoría simple</option>`;
+          if (savedVal) congressRoundSelect.value = savedVal;
+        }
         congressRoundSelect.disabled = false;
       }
     }
