@@ -111,6 +111,8 @@ input[type="text"]:focus, input[type="number"]:focus {
   box-shadow: 0 0 0 2.5px var(--accent-pale), 0 0 0 1px rgba(139,31,31,0.15);
 }
 input[type="number"] { text-align: right; }
+input.votes-input   { text-align: right; }
+
 
 /* ── NAME + SIGLAS CELL ─────────────────────────────────────── */
 #votes-table .name-wrapper {
@@ -231,3 +233,7 @@ input[type="color"]::-webkit-color-swatch { border: none; border-radius: 1px; }
   font-weight: 700;
   color: var(--accent);
 }
+
+/* ── OCULTAR NOMBRE ─────────────────────────────────────────── */
+input.names-hidden-mode { color: #8b3131; }
+input.names-hidden-mode::placeholder { color: #8b3131; }

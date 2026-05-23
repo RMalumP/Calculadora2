@@ -123,7 +123,7 @@ function majorityRound2(totalSeats) {
   const existingNames = new Set();
 
   rows.forEach(tr => {
-    const nameInput = tr.querySelector('input[type=text]');
+    const nameInput = tr.querySelector('.sr-name-input');
     if (nameInput && nameInput.value.trim()) existingNames.add(nameInput.value.trim());
   });
 
@@ -131,7 +131,7 @@ function majorityRound2(totalSeats) {
   while (existingNames.has(toRoman(unnamedCounter))) unnamedCounter++;
 
   rows.forEach(tr => {
-    const nameInput  = tr.querySelector('input[type=text]');
+    const nameInput  = tr.querySelector('.sr-name-input');
     const votesInput = tr.querySelector('input[type=number]');
     const colorInput = tr.querySelector('input[type=color]');
     if (!nameInput || !votesInput) return;
@@ -139,6 +139,7 @@ function majorityRound2(totalSeats) {
     let name = nameInput.value.trim();
     const votes = parseFloat(votesInput.value) || 0;
     const color = colorInput?.value || '#888888';
+    const siglas = tr.dataset.siglas || '';
 
     if (!name && votes > 0) {
       name = toRoman(unnamedCounter);
@@ -148,7 +149,7 @@ function majorityRound2(totalSeats) {
       while (existingNames.has(toRoman(unnamedCounter))) unnamedCounter++;
     }
 
-    if (name && votes >= 0) candidates.push({ name, votes, color });
+    if (name && votes >= 0) candidates.push({ name, siglas, votes, color });
   });
 
   if (!candidates.length) return [];

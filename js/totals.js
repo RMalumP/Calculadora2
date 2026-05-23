@@ -10,12 +10,12 @@ function updateTotals() {
   rows.forEach(tr => {
     const input = tr.dataset.isOtros
       ? tr.querySelector('input[data-otros-main]')
-      : tr.querySelector('input[type=number]');
-    sumParty += parseFloat(input?.value) || 0;
+      : tr.querySelector('.votes-input');
+    sumParty += parseVoteValue(input?.value);
   });
 
-  const blank = parseFloat(document.getElementById('blank-votes').value) || 0;
-  const nullv  = parseFloat(document.getElementById('null-votes').value) || 0;
+  const blank = parseVoteValue(document.getElementById('blank-votes').value);
+  const nullv  = parseVoteValue(document.getElementById('null-votes').value);
   const totalValid = sumParty + blank;
   const totalAll   = totalValid + nullv;
 
@@ -25,16 +25,16 @@ function updateTotals() {
   // Ajuste automático del censo cuando los votos cambian
   const censusInput = document.getElementById('census-total');
   const abstInput   = document.getElementById('abstention');
-  const currentCensus = parseFloat(censusInput.value) || 0;
-  const currentAbst   = parseFloat(abstInput.value) || 0;
+  const currentCensus = parseVoteValue(censusInput.value);
+  const currentAbst   = parseVoteValue(abstInput.value);
 
   if (totalAll > 0) {
     const expectedCensus = totalAll + currentAbst;
     if (expectedCensus > currentCensus) {
-      censusInput.value = expectedCensus;
+      censusInput.value = addThousandDots(expectedCensus);
     } else if (currentCensus > 0 && currentCensus < totalAll) {
-      abstInput.value   = 0;
-      censusInput.value = totalAll;
+      abstInput.value   = '';
+      censusInput.value = addThousandDots(totalAll);
     }
   }
 
@@ -44,8 +44,8 @@ function updateTotals() {
   rows.forEach(tr => {
     const input = tr.dataset.isOtros
       ? tr.querySelector('input[data-otros-main]')
-      : tr.querySelector('input[type=number]');
-    const v = parseFloat(input?.value) || 0;
+      : tr.querySelector('.votes-input');
+    const v = parseVoteValue(input?.value);
     tr.querySelector('.pct-display').innerHTML = totalValid > 0 ? pctBar(v / totalValid * 100) : '—';
   });
 
@@ -55,22 +55,22 @@ function updateTotals() {
 
 function updateCensus(source) {
   const totalValid = _parseTotalValid();
-  const nullv      = parseFloat(document.getElementById('null-votes').value) || 0;
+  const nullv      = parseVoteValue(document.getElementById('null-votes').value);
   const totalAll   = totalValid + nullv;
   const censusInput = document.getElementById('census-total');
   const abstInput   = document.getElementById('abstention');
 
   if (source === 'total') {
-    const census = parseFloat(censusInput.value) || 0;
+    const census = parseVoteValue(censusInput.value);
     if (census >= totalAll) {
-      abstInput.value = census - totalAll;
+      abstInput.value = addThousandDots(census - totalAll);
     } else if (census > 0 && census < totalAll) {
-      censusInput.value = totalAll;
-      abstInput.value   = 0;
+      censusInput.value = addThousandDots(totalAll);
+      abstInput.value   = '';
     }
   } else if (source === 'abstention') {
-    const abst = parseFloat(abstInput.value) || 0;
-    censusInput.value = totalAll + abst;
+    const abst = parseVoteValue(abstInput.value);
+    censusInput.value = addThousandDots(totalAll + abst);
   }
 
   updateParticipation();
@@ -78,10 +78,10 @@ function updateCensus(source) {
 
 function updateParticipation() {
   const totalValid = _parseTotalValid();
-  const nullv      = parseFloat(document.getElementById('null-votes').value) || 0;
+  const nullv      = parseVoteValue(document.getElementById('null-votes').value);
   const totalAll   = totalValid + nullv;
-  const census     = parseFloat(document.getElementById('census-total').value) || 0;
-  const abst       = parseFloat(document.getElementById('abstention').value) || 0;
+  const census     = parseVoteValue(document.getElementById('census-total').value);
+  const abst       = parseVoteValue(document.getElementById('abstention').value);
 
   if (census > 0 && totalAll > 0) {
     document.getElementById('total-participation').textContent = (totalAll / census * 100).toFixed(2) + '%';
