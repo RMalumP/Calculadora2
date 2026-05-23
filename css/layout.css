@@ -111,6 +111,31 @@ input[type="text"]:focus, input[type="number"]:focus {
   box-shadow: 0 0 0 2.5px var(--accent-pale), 0 0 0 1px rgba(139,31,31,0.15);
 }
 input[type="number"] { text-align: right; }
+input.votes-input   { text-align: right; }
+
+
+/* ── NAME + SIGLAS CELL ─────────────────────────────────────── */
+#votes-table .name-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+#votes-table .name-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+}
+#votes-table .siglas-input {
+  width: 44px;
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  display: none;
+  text-transform: uppercase;
+}
+#votes-table .siglas-input.siglas-visible {
+  display: inline-block;
+}
 
 input[type="color"] {
   width: 26px; height: 20px;
@@ -208,3 +233,7 @@ input[type="color"]::-webkit-color-swatch { border: none; border-radius: 1px; }
   font-weight: 700;
   color: var(--accent);
 }
+
+/* ── OCULTAR NOMBRE ─────────────────────────────────────────── */
+input.names-hidden-mode { color: #8b3131; }
+input.names-hidden-mode::placeholder { color: #8b3131; }

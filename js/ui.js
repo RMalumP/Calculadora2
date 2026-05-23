@@ -6,6 +6,7 @@
 /* ── SIGLAS ───────────────────────────────────────────────── */
 
 let siglasVisible = false;
+let namesHidden = false;
 
 function toggleSiglasVisibility() {
   siglasVisible = !siglasVisible;
@@ -13,11 +14,73 @@ function toggleSiglasVisibility() {
   if (btn) btn.textContent = siglasVisible ? 'Siglas ▲' : 'Siglas ▼';
 
   document.querySelectorAll('#votes-body .siglas-input').forEach(inp => {
-    inp.style.display = siglasVisible ? 'inline-block' : 'none';
+    inp.classList.toggle('siglas-visible', siglasVisible);
   });
 
-  document.querySelectorAll('.siglas-col').forEach(el => {
+  document.querySelectorAll('.result-siglas-prefix').forEach(el => {
     el.style.display = siglasVisible ? '' : 'none';
+    if (siglasVisible) {
+      const s = el.dataset.siglas || '';
+      el.textContent = s + (namesHidden ? '' : '-');
+    }
+  });
+
+  // Segunda vuelta
+  document.querySelectorAll('#second-round-body .sr-siglas-prefix').forEach(el => {
+    const s = el.dataset.siglas || '';
+    el.style.display = (siglasVisible && s) ? '' : 'none';
+    if (siglasVisible && s) el.textContent = s + (namesHidden ? '' : '-');
+  });
+  document.querySelectorAll('#second-round-body .sr-name-input').forEach(inp => {
+    inp.style.display = namesHidden ? 'none' : '';
+  });
+
+  const hideNamesBtn = document.getElementById('hide-names-btn');
+  if (hideNamesBtn) hideNamesBtn.style.display = siglasVisible ? '' : 'none';
+
+  if (!siglasVisible && namesHidden) {
+    namesHidden = false;
+    if (hideNamesBtn) hideNamesBtn.textContent = 'Ocultar nombre';
+    document.querySelectorAll('#votes-body .name-input').forEach(inp => {
+      inp.classList.remove('names-hidden-mode');
+    });
+    document.querySelectorAll('.result-party-name').forEach(el => {
+      el.style.display = '';
+    });
+    document.querySelectorAll('#second-round-body .sr-name-input').forEach(inp => {
+      inp.style.display = '';
+    });
+  }
+}
+
+function toggleHideNames() {
+  namesHidden = !namesHidden;
+  const btn = document.getElementById('hide-names-btn');
+  if (btn) btn.textContent = namesHidden ? 'Mostrar nombre' : 'Ocultar nombre';
+
+  // Tabla de votos: solo cambiar color, el nombre sigue visible
+  document.querySelectorAll('#votes-body .name-input').forEach(inp => {
+    inp.classList.toggle('names-hidden-mode', namesHidden);
+  });
+
+  // Tabla de escaños: ocultar/mostrar el nombre del partido
+  document.querySelectorAll('.result-party-name').forEach(el => {
+    el.style.display = namesHidden ? 'none' : '';
+  });
+
+  // Guión del prefijo siglas: desaparece cuando el nombre está oculto
+  document.querySelectorAll('.result-siglas-prefix').forEach(el => {
+    const s = el.dataset.siglas || '';
+    el.textContent = s + (namesHidden ? '' : '-');
+  });
+
+  // Segunda vuelta
+  document.querySelectorAll('#second-round-body .sr-name-input').forEach(inp => {
+    inp.style.display = namesHidden ? 'none' : '';
+  });
+  document.querySelectorAll('#second-round-body .sr-siglas-prefix').forEach(el => {
+    const s = el.dataset.siglas || '';
+    el.textContent = s + (namesHidden ? '' : '-');
   });
 }
 
@@ -34,6 +97,9 @@ function switchTab(tabName) {
 }
 
 /* ── FÓRMULA ─────────────────────────────────────────────── */
+
+let _seatsBeforeMajority = 350;
+let _inMajorityMode = false;
 
 function buildFormulaSelect() {
   const sel = document.getElementById('formula-select');
@@ -65,8 +131,18 @@ function updateFormulaDesc() {
     srContainer.style.display = 'none';
   }
 
+  const nowMajority = val === 'majority' || val === 'majority_round2';
+  const seatsInput  = document.getElementById('seats');
+  if (nowMajority && !_inMajorityMode) {
+    _seatsBeforeMajority = parseInt(seatsInput.value) || 350;
+    seatsInput.value = 1;
+  } else if (!nowMajority && _inMajorityMode) {
+    seatsInput.value = _seatsBeforeMajority;
+  }
+  _inMajorityMode = nowMajority;
+
   const bonus = document.getElementById('bonus-field');
-  bonus.style.display = (val === 'majority' || val === 'majority_round2') ? 'none' : 'block';
+  bonus.style.display = nowMajority ? 'none' : 'block';
 }
 
 /* ── PARÁMETROS ──────────────────────────────────────────── */
