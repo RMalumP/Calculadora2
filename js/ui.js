@@ -25,6 +25,16 @@ function toggleSiglasVisibility() {
     }
   });
 
+  // Segunda vuelta
+  document.querySelectorAll('#second-round-body .sr-siglas-prefix').forEach(el => {
+    const s = el.dataset.siglas || '';
+    el.style.display = (siglasVisible && s) ? '' : 'none';
+    if (siglasVisible && s) el.textContent = s + (namesHidden ? '' : '-');
+  });
+  document.querySelectorAll('#second-round-body .sr-name-input').forEach(inp => {
+    inp.style.display = namesHidden ? 'none' : '';
+  });
+
   const hideNamesBtn = document.getElementById('hide-names-btn');
   if (hideNamesBtn) hideNamesBtn.style.display = siglasVisible ? '' : 'none';
 
@@ -36,6 +46,9 @@ function toggleSiglasVisibility() {
     });
     document.querySelectorAll('.result-party-name').forEach(el => {
       el.style.display = '';
+    });
+    document.querySelectorAll('#second-round-body .sr-name-input').forEach(inp => {
+      inp.style.display = '';
     });
   }
 }
@@ -57,6 +70,15 @@ function toggleHideNames() {
 
   // Guión del prefijo siglas: desaparece cuando el nombre está oculto
   document.querySelectorAll('.result-siglas-prefix').forEach(el => {
+    const s = el.dataset.siglas || '';
+    el.textContent = s + (namesHidden ? '' : '-');
+  });
+
+  // Segunda vuelta
+  document.querySelectorAll('#second-round-body .sr-name-input').forEach(inp => {
+    inp.style.display = namesHidden ? 'none' : '';
+  });
+  document.querySelectorAll('#second-round-body .sr-siglas-prefix').forEach(el => {
     const s = el.dataset.siglas || '';
     el.textContent = s + (namesHidden ? '' : '-');
   });

@@ -98,12 +98,12 @@
           <tbody>
             <tr>
               <td style="font-style:italic;color:var(--text-muted);font-size:0.85rem">Censo total</td>
-              <td><input type="number" id="census-total" min="0" placeholder="0" oninput="updateCensus('total')"></td>
+              <td><input type="text" id="census-total" placeholder="0" oninput="formatVoteInput(this);updateCensus('total')" onfocus="onVoteFocus(this)" onblur="onVoteBlur(this)"></td>
               <td class="pct-cell">100%</td>
             </tr>
             <tr class="special-row">
               <td style="font-style:italic;color:var(--text-muted);font-size:0.85rem">No votantes (abstención)</td>
-              <td><input type="number" id="abstention" min="0" placeholder="0" oninput="updateCensus('abstention')"></td>
+              <td><input type="text" id="abstention" placeholder="0" oninput="formatVoteInput(this);updateCensus('abstention')" onfocus="onVoteFocus(this)" onblur="onVoteBlur(this)"></td>
               <td class="pct-cell" id="abstention-pct">—</td>
             </tr>
           </tbody>
@@ -310,8 +310,8 @@
           <thead>
             <tr>
               <th style="width:30px"></th>
-              <th style="width:50px;text-align:center"></th>
-              <th>Partido</th>
+              <th style="width:50px;text-align:center"><button id="pact-siglas-toggle-btn" onclick="togglePactSiglasVisibility()" style="font-size:0.6rem;font-weight:700;letter-spacing:0.02em;padding:2px 5px;border:1px solid var(--border);border-radius:3px;background:none;cursor:pointer;color:var(--text-muted);white-space:nowrap;line-height:1.5">Siglas ▼</button></th>
+              <th>Partido <button id="pact-hide-names-btn" onclick="togglePactHideNames()" style="display:none;font-size:0.58rem;font-weight:700;letter-spacing:0.02em;padding:2px 5px;border:1px solid #8b3131;border-radius:3px;background:none;cursor:pointer;color:#8b3131;white-space:nowrap;line-height:1.5;margin-left:6px">Ocultar nombre</button></th>
               <th style="text-align:center;width:120px" id="pact-seats-header">Escaños</th>
               <th style="width:100px;text-align:center">Bloque</th>
             </tr>

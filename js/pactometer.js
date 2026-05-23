@@ -6,10 +6,12 @@
 let pactRowCount      = 0;
 let currentLeftLabel  = 'IZQ';
 let currentRightLabel = 'DER';
+let pactSiglasVisible = false;
+let pactNamesHidden   = false;
 
 /* ── FILAS DEL PACTÓMETRO ──────────────────────────────────── */
 
-function addPactometerRow(name = '', seats = '', color = '', block = '') {
+function addPactometerRow(name = '', seats = '', color = '', block = '', siglas = '') {
   const colorVal = color || PALETTE[pactRowCount % PALETTE.length];
   pactRowCount++;
   const tbody = document.getElementById('pactometer-body');
@@ -19,7 +21,10 @@ function addPactometerRow(name = '', seats = '', color = '', block = '') {
   tr.innerHTML = `
     <td><button class="del-btn" onclick="delPactometerRow(this)" title="Eliminar">✕</button></td>
     <td style="text-align:center;padding:4px 6px"><input type="color" value="${colorVal}" title="Color del partido" onchange="updateHemicycle()"></td>
-    <td><input type="text" placeholder="Nombre del partido" value="${name}"></td>
+    <td><div style="display:flex;align-items:center;gap:4px;width:100%">
+      <input type="text" class="pact-siglas-input" placeholder="Sig." maxlength="6" value="${siglas}" style="width:44px;flex-shrink:0;font-size:0.8rem;border:none;background:transparent;font-family:'Source Sans 3',sans-serif;outline:none;text-transform:uppercase;${pactSiglasVisible ? '' : 'display:none'}" oninput="this.value=this.value.toUpperCase()">
+      <input type="text" class="pact-name-input" placeholder="Nombre del partido" value="${name}" style="flex:1;min-width:0;border:none;background:transparent;font-family:'Source Sans 3',sans-serif;font-size:14px;color:var(--text);outline:none;${pactNamesHidden ? 'display:none' : ''}">
+    </div></td>
     <td style="text-align:center"><input type="number" min="0" placeholder="0" value="${seats}" style="text-align:center;font-size:1.1rem;font-weight:600" oninput="updateHemicycle()"></td>
     <td style="text-align:center">
       <div style="display:flex;gap:4px;justify-content:center">
@@ -29,7 +34,7 @@ function addPactometerRow(name = '', seats = '', color = '', block = '') {
     </td>`;
   tbody.appendChild(tr);
 
-  const nameInput  = tr.querySelector('input[type=text]');
+  const nameInput  = tr.querySelector('.pact-name-input');
   const seatsInput = tr.querySelector('input[type=number]');
 
   nameInput.addEventListener('input', function () {
@@ -38,10 +43,10 @@ function addPactometerRow(name = '', seats = '', color = '', block = '') {
   });
 
   seatsInput.addEventListener('blur', function () {
-    const n     = nameInput.value.trim();
-    const s     = parseFloat(this.value) || 0;
+    const n = nameInput.value.trim();
+    const s = parseFloat(this.value) || 0;
     if (!n && s > 0) {
-      const existing = new Set([...document.querySelectorAll('#pactometer-body tr')].map(r => r.querySelector('input[type=text]').value.trim()));
+      const existing = new Set([...document.querySelectorAll('#pactometer-body tr')].map(r => r.querySelector('.pact-name-input').value.trim()));
       let counter = 1;
       while (existing.has(toRoman(counter))) counter++;
       nameInput.value = toRoman(counter);
@@ -86,7 +91,7 @@ function copyResultsToPactometer(allocated, totalSeats) {
   pactRowCount = 0;
 
   const withSeats = allocated.filter(p => p.seats > 0);
-  withSeats.forEach(party => addPactometerRow(party.name, party.seats, party.color, ''));
+  withSeats.forEach(party => addPactometerRow(party.name, party.seats, party.color, '', party.siglas || ''));
 
   if (withSeats.length > 0) {
     addPactometerRow(); addPactometerRow();
@@ -107,7 +112,7 @@ function updateHemicycle() {
   rows.forEach(tr => {
     const seats = parseFloat(tr.querySelector('input[type=number]')?.value) || 0;
     const color = tr.querySelector('input[type=color]')?.value || '#888888';
-    const name  = tr.querySelector('input[type=text]')?.value.trim() || '';
+    const name  = tr.querySelector('.pact-name-input')?.value.trim() || '';
     const block = tr.dataset.block || '';
 
     if (seats > 0) {
@@ -330,6 +335,39 @@ function _showResult(el, text, bg) {
   el.textContent = text;
   el.style.background = bg;
   el.style.display = 'block';
+}
+
+/* ── SIGLAS DEL PACTÓMETRO ─────────────────────────────────── */
+
+function togglePactSiglasVisibility() {
+  pactSiglasVisible = !pactSiglasVisible;
+  const btn = document.getElementById('pact-siglas-toggle-btn');
+  if (btn) btn.textContent = pactSiglasVisible ? 'Siglas ▲' : 'Siglas ▼';
+
+  document.querySelectorAll('#pactometer-body .pact-siglas-input').forEach(inp => {
+    inp.style.display = pactSiglasVisible ? '' : 'none';
+  });
+
+  const hideNamesBtn = document.getElementById('pact-hide-names-btn');
+  if (hideNamesBtn) hideNamesBtn.style.display = pactSiglasVisible ? '' : 'none';
+
+  if (!pactSiglasVisible && pactNamesHidden) {
+    pactNamesHidden = false;
+    if (hideNamesBtn) hideNamesBtn.textContent = 'Ocultar nombre';
+    document.querySelectorAll('#pactometer-body .pact-name-input').forEach(inp => {
+      inp.style.display = '';
+    });
+  }
+}
+
+function togglePactHideNames() {
+  pactNamesHidden = !pactNamesHidden;
+  const btn = document.getElementById('pact-hide-names-btn');
+  if (btn) btn.textContent = pactNamesHidden ? 'Mostrar nombre' : 'Ocultar nombre';
+
+  document.querySelectorAll('#pactometer-body .pact-name-input').forEach(inp => {
+    inp.style.display = pactNamesHidden ? 'none' : '';
+  });
 }
 
 /* ── ETIQUETAS DE BLOQUES ───────────────────────────────────── */

@@ -214,7 +214,7 @@ function highlightInputTable(allocated, formula) {
 
   if (formula === 'majority_round2') {
     const srNames = new Set([...document.querySelectorAll('#second-round-body tr')]
-      .map(tr => tr.querySelector('input[type=text]')?.value.trim()).filter(Boolean));
+      .map(tr => tr.querySelector('.sr-name-input')?.value.trim()).filter(Boolean));
     const winnerName = allocated.find(a => a.seats > 0)?.name;
     inputRows.forEach(tr => {
       const name  = tr.querySelector('.name-input')?.value.trim();
@@ -371,20 +371,27 @@ function prepareSecondRound() {
       unnamedCounter++;
       while (existingNames.has('Partido ' + toRoman(unnamedCounter))) unnamedCounter++;
     }
-    if (name && votes > 0) parties.push({ name, votes, color });
+    const siglas = tr.querySelector('.siglas-input')?.value.trim() || '';
+    if (name && votes > 0) parties.push({ name, siglas, votes, color });
   });
 
   parties.sort((a, b) => b.votes - a.votes);
   const total = parties.slice(0, 2).reduce((s, p) => s + p.votes, 0);
+  const _siglasVis = typeof siglasVisible !== 'undefined' && siglasVisible;
+  const _namesHid  = typeof namesHidden  !== 'undefined' && namesHidden;
 
   for (let i = 0; i < 2; i++) {
-    const p   = parties[i] || { name: '', color: PALETTE[i % PALETTE.length], votes: '' };
+    const p   = parties[i] || { name: '', siglas: '', color: PALETTE[i % PALETTE.length], votes: '' };
     const row = document.getElementById(`sr-row-${i + 1}`);
     const pct = total > 0 && p.votes ? (p.votes / total * 100).toFixed(2) : '—';
     if (row) {
+      row.dataset.siglas = p.siglas || '';
+      const siglasPrefixHtml = p.siglas
+        ? `<span class="sr-siglas-prefix" data-siglas="${p.siglas}" style="${_siglasVis ? '' : 'display:none'}">${p.siglas}${_siglasVis && !_namesHid ? '-' : ''}</span>`
+        : `<span class="sr-siglas-prefix" data-siglas="" style="display:none"></span>`;
       row.innerHTML = `
         <td style="text-align:center;padding:4px 6px"><input type="color" value="${p.color}" onchange="updateSecondRoundPercentages()"></td>
-        <td><input type="text" placeholder="Candidato ${i + 1}" value="${p.name}" oninput="updateSecondRoundPercentages()"></td>
+        <td><div style="display:flex;align-items:center;gap:4px">${siglasPrefixHtml}<input type="text" class="sr-name-input" placeholder="Candidato ${i + 1}" value="${p.name}" oninput="updateSecondRoundPercentages()" style="${_namesHid ? 'display:none' : ''}"></div></td>
         <td><input type="number" min="0" placeholder="0" value="${p.votes}" oninput="updateSecondRoundPercentages()"></td>
         <td class="pct-cell">${pct === '—' ? '—' : pct + '%'}</td>`;
     }
