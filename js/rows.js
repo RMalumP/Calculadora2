@@ -69,9 +69,9 @@ function _buildRow(name, votes, color, isOtros) {
         <div class="otros-dropdown" style="display:none"></div>
         <input type="text" value="Otros partidos" readonly style="display:none">
        </div>`
-    : `<div style="display:flex;align-items:center;gap:4px;width:100%">
-        <input type="text" class="siglas-input" placeholder="Sig." maxlength="6" style="width:44px;display:none;flex-shrink:0;font-size:0.8rem" oninput="this.value=this.value.toUpperCase()">
-        <input type="text" class="name-input" placeholder="Nombre del partido" value="${name}" style="flex:1;min-width:0">
+    : `<div class="name-wrapper">
+        <input type="text" class="siglas-input" placeholder="Sig." maxlength="6" oninput="this.value=this.value.toUpperCase()">
+        <input type="text" class="name-input" placeholder="Nombre del partido" value="${name}">
        </div>`;
 
   const actionsCell = isOtros ? '' :
@@ -129,7 +129,7 @@ function _buildRow(name, votes, color, isOtros) {
 
     if (typeof siglasVisible !== 'undefined' && siglasVisible) {
       const siglasInp = tr.querySelector('.siglas-input');
-      if (siglasInp) siglasInp.style.display = 'inline-block';
+      if (siglasInp) siglasInp.classList.add('siglas-visible');
     }
   }
 
@@ -296,7 +296,10 @@ function ejectFromOtros(idx) {
   const tr = _insertBeforeOtros(p.name, p.votes, p.color, false);
   if (p.siglas) {
     const siglasInp = tr.querySelector('.siglas-input');
-    if (siglasInp) siglasInp.value = p.siglas;
+    if (siglasInp) {
+      siglasInp.value = p.siglas;
+      if (typeof siglasVisible !== 'undefined' && siglasVisible) siglasInp.classList.add('siglas-visible');
+    }
   }
   recalcOtrosTotal();
   updateOtrosDropdown();

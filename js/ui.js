@@ -13,7 +13,7 @@ function toggleSiglasVisibility() {
   if (btn) btn.textContent = siglasVisible ? 'Siglas ▲' : 'Siglas ▼';
 
   document.querySelectorAll('#votes-body .siglas-input').forEach(inp => {
-    inp.style.display = siglasVisible ? 'inline-block' : 'none';
+    inp.classList.toggle('siglas-visible', siglasVisible);
   });
 
   document.querySelectorAll('.siglas-col').forEach(el => {
