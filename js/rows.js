@@ -127,10 +127,6 @@ function _buildRow(name, votes, color, isOtros) {
 
     tr.querySelector('input[type=color]').addEventListener('input', updateSecondRoundIfActive);
 
-    if (typeof siglasVisible !== 'undefined' && siglasVisible) {
-      const siglasInp = tr.querySelector('.siglas-input');
-      if (siglasInp) siglasInp.classList.add('siglas-visible');
-    }
   }
 
   return tr;
@@ -296,10 +292,7 @@ function ejectFromOtros(idx) {
   const tr = _insertBeforeOtros(p.name, p.votes, p.color, false);
   if (p.siglas) {
     const siglasInp = tr.querySelector('.siglas-input');
-    if (siglasInp) {
-      siglasInp.value = p.siglas;
-      if (typeof siglasVisible !== 'undefined' && siglasVisible) siglasInp.classList.add('siglas-visible');
-    }
+    if (siglasInp) siglasInp.value = p.siglas;
   }
   recalcOtrosTotal();
   updateOtrosDropdown();
