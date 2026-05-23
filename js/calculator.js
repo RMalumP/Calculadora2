@@ -165,14 +165,17 @@ function displayResults(allocated, totalValid, totalSeats, formula, excludedBarr
     const diffColor = diff > 0 ? 'color:#6b2020' : diff < 0 ? 'color:#20506b' : 'color:var(--text-muted)';
     const barW     = Math.min(p.seats / totalSeats * 100 * 1.8, 120);
     const color    = p.color || '#888888';
+    const _siglasVis = typeof siglasVisible !== 'undefined' && siglasVisible;
+    const _namesHid  = typeof namesHidden  !== 'undefined' && namesHidden;
     const siglasPrefixHtml = p.siglas
-      ? `<span class="result-siglas-prefix" style="${(typeof siglasVisible !== 'undefined' && siglasVisible) ? '' : 'display:none'}">${p.siglas}-</span>`
+      ? `<span class="result-siglas-prefix" data-siglas="${p.siglas}" style="${_siglasVis ? '' : 'display:none'}">${p.siglas}${_siglasVis && !_namesHid ? '-' : ''}</span>`
       : '';
+    const partyNameHtml = `<span class="result-party-name" style="${_namesHid ? 'display:none' : ''}">${p.name}</span>`;
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td style="font-size:0.88rem">
         <div style="display:flex;align-items:center;gap:6px">
-          <span class="color-swatch" style="background:${color}"></span><span>${siglasPrefixHtml}${p.name}</span>
+          <span class="color-swatch" style="background:${color}"></span><span>${siglasPrefixHtml}${partyNameHtml}</span>
         </div>
       </td>
       <td style="text-align:right;font-variant-numeric:tabular-nums;font-size:0.82rem">${p.votes.toLocaleString('es-ES')}</td>

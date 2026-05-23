@@ -19,6 +19,10 @@ function toggleSiglasVisibility() {
 
   document.querySelectorAll('.result-siglas-prefix').forEach(el => {
     el.style.display = siglasVisible ? '' : 'none';
+    if (siglasVisible) {
+      const s = el.dataset.siglas || '';
+      el.textContent = s + (namesHidden ? '' : '-');
+    }
   });
 
   const hideNamesBtn = document.getElementById('hide-names-btn');
@@ -26,10 +30,12 @@ function toggleSiglasVisibility() {
 
   if (!siglasVisible && namesHidden) {
     namesHidden = false;
-    if (hideNamesBtn) hideNamesBtn.textContent = 'no mostrar nombre';
+    if (hideNamesBtn) hideNamesBtn.textContent = 'Ocultar nombre';
     document.querySelectorAll('#votes-body .name-input').forEach(inp => {
       inp.style.color = '';
-      inp.style.display = '';
+    });
+    document.querySelectorAll('.result-party-name').forEach(el => {
+      el.style.display = '';
     });
   }
 }
@@ -37,11 +43,22 @@ function toggleSiglasVisibility() {
 function toggleHideNames() {
   namesHidden = !namesHidden;
   const btn = document.getElementById('hide-names-btn');
-  if (btn) btn.textContent = namesHidden ? 'mostrar nombre' : 'no mostrar nombre';
+  if (btn) btn.textContent = namesHidden ? 'Mostrar nombre' : 'Ocultar nombre';
 
+  // Tabla de votos: solo cambiar color, el nombre sigue visible
   document.querySelectorAll('#votes-body .name-input').forEach(inp => {
     inp.style.color = namesHidden ? '#8b3131' : '';
-    inp.style.display = namesHidden ? 'none' : '';
+  });
+
+  // Tabla de escaños: ocultar/mostrar el nombre del partido
+  document.querySelectorAll('.result-party-name').forEach(el => {
+    el.style.display = namesHidden ? 'none' : '';
+  });
+
+  // Guión del prefijo siglas: desaparece cuando el nombre está oculto
+  document.querySelectorAll('.result-siglas-prefix').forEach(el => {
+    const s = el.dataset.siglas || '';
+    el.textContent = s + (namesHidden ? '' : '-');
   });
 }
 
