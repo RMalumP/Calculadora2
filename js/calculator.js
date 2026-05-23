@@ -114,7 +114,7 @@ function calculate() {
 
   otrosAbsorbedParties = [...absorbedMap.values()];
   const otrosAccumulatedVotes = otrosAbsorbedParties.reduce((s, p) => s + p.votes, 0);
-  if (otrosVotesInput) otrosVotesInput.value = otrosAccumulatedVotes > 0 ? Math.min(otrosAccumulatedVotes, 9000000000).toLocaleString('es-ES') : '';
+  if (otrosVotesInput) otrosVotesInput.value = otrosAccumulatedVotes > 0 ? addThousandDots(Math.min(otrosAccumulatedVotes, 9000000000)) : '';
 
   enforceOtrosLast();
   updateOtrosDropdown();

@@ -68,13 +68,13 @@
             <tr class="special-row">
               <td></td><td></td><td></td>
               <td>Votos en blanco</td>
-              <td><input type="text" inputmode="numeric" id="blank-votes" class="votes-input" placeholder="0" oninput="formatVoteInput(this);updateTotals()"></td>
+              <td><div class="vote-wrap"><input type="text" inputmode="numeric" id="blank-votes" class="votes-input" placeholder="0" oninput="formatVoteInput(this);updateTotals()"><div class="vote-spinners"><button type="button" tabindex="-1" onclick="stepVoteInput(this,1)">▴</button><button type="button" tabindex="-1" onclick="stepVoteInput(this,-1)">▾</button></div></div></td>
               <td class="pct-cell" id="blank-pct">—</td>
             </tr>
             <tr class="special-row">
               <td></td><td></td><td></td>
               <td>Votos nulos</td>
-              <td><input type="text" inputmode="numeric" id="null-votes" class="votes-input" placeholder="0" oninput="formatVoteInput(this);updateTotals()"></td>
+              <td><div class="vote-wrap"><input type="text" inputmode="numeric" id="null-votes" class="votes-input" placeholder="0" oninput="formatVoteInput(this);updateTotals()"><div class="vote-spinners"><button type="button" tabindex="-1" onclick="stepVoteInput(this,1)">▴</button><button type="button" tabindex="-1" onclick="stepVoteInput(this,-1)">▾</button></div></div></td>
               <td class="pct-cell" id="null-pct">—</td>
             </tr>
           </tbody>

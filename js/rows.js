@@ -29,9 +29,22 @@ function parseVoteValue(val) {
   return parseInt(String(val || '').replace(/[^\d]/g, ''), 10) || 0;
 }
 
+function addThousandDots(n) {
+  return String(Math.floor(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
 function formatVoteInput(input) {
   const num = parseVoteValue(input.value);
-  input.value = num > 0 ? Math.min(num, 9000000000).toLocaleString('es-ES') : '';
+  input.value = num > 0 ? addThousandDots(Math.min(num, 9000000000)) : '';
+}
+
+function stepVoteInput(btn, delta) {
+  const input = btn.closest('.vote-wrap')?.querySelector('.votes-input');
+  if (!input) return;
+  const cur = parseVoteValue(input.value);
+  const newVal = Math.max(0, Math.min(cur + delta, 9000000000));
+  input.value = newVal > 0 ? addThousandDots(newVal) : '';
+  input.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
 function _nextSinNombre() {
@@ -96,14 +109,14 @@ function _buildRow(name, votes, color, isOtros) {
     : '<span class="drag-handle" title="Arrastrar para reordenar">⠿</span>';
 
   const votesFmt = parseVoteValue(votes) > 0
-    ? Math.min(parseVoteValue(votes), 9000000000).toLocaleString('es-ES') : '';
+    ? addThousandDots(Math.min(parseVoteValue(votes), 9000000000)) : '';
 
   tr.innerHTML = `
     <td style="white-space:nowrap;padding:2px 2px 2px 4px">${dragHandle}${deleteButton}</td>
     <td style="text-align:center;padding:1px 2px">${actionsCell}</td>
     <td style="text-align:center;padding:4px 6px"><input type="color" value="${colorVal}" title="Color del partido" ${isOtros ? 'disabled style="cursor:not-allowed"' : ''}></td>
     <td>${nameCell}</td>
-    <td><input type="text" inputmode="numeric" class="votes-input" placeholder="0" value="${votesFmt}" ${isOtros ? 'data-otros-main="true"' : ''} oninput="formatVoteInput(this);updateTotals();updateSecondRoundIfActive();"></td>
+    <td style="padding:2px 4px"><div class="vote-wrap"><input type="text" inputmode="numeric" class="votes-input" placeholder="0" value="${votesFmt}" ${isOtros ? 'data-otros-main="true"' : ''} oninput="formatVoteInput(this);updateTotals();updateSecondRoundIfActive();"><div class="vote-spinners"><button type="button" tabindex="-1" onclick="stepVoteInput(this,1)">▴</button><button type="button" tabindex="-1" onclick="stepVoteInput(this,-1)">▾</button></div></div></td>
     <td class="pct-cell pct-display">—</td>`;
 
   // Lógica especial para "Otros partidos"
@@ -112,7 +125,7 @@ function _buildRow(name, votes, color, isOtros) {
     otrosVotesInput.addEventListener('input', function () {
       const entered = parseVoteValue(this.value);
       const corrected = syncManualFromMain(entered);
-      if (corrected !== entered) this.value = corrected > 0 ? Math.min(corrected, 9000000000).toLocaleString('es-ES') : '';
+      if (corrected !== entered) this.value = corrected > 0 ? addThousandDots(Math.min(corrected, 9000000000)) : '';
       updateOtrosDropdown();
       updateTotals();
       updateSecondRoundIfActive();
@@ -245,7 +258,7 @@ function updateOtrosDropdown() {
     votesInput.type = 'text';
     votesInput.setAttribute('inputmode', 'numeric');
     votesInput.className = 'otros-item-votes-input';
-    votesInput.value = p.votes > 0 ? p.votes.toLocaleString('es-ES') : '';
+    votesInput.value = p.votes > 0 ? addThousandDots(Math.min(p.votes, 9000000000)) : '';
     votesInput.addEventListener('input', function () {
       formatVoteInput(this);
       otrosAbsorbedParties[idx].votes = parseVoteValue(this.value);
@@ -274,7 +287,7 @@ function recalcOtrosTotal() {
   const mainInput = otrosRow.querySelector('input[data-otros-main]');
   if (!mainInput) return;
   const total = otrosAbsorbedParties.reduce((s, p) => s + (p.votes || 0), 0);
-  mainInput.value = total > 0 ? Math.min(total, 9000000000).toLocaleString('es-ES') : '';
+  mainInput.value = total > 0 ? addThousandDots(Math.min(total, 9000000000)) : '';
   updateTotals();
 }
 

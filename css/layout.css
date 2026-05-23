@@ -113,6 +113,40 @@ input[type="text"]:focus, input[type="number"]:focus {
 input[type="number"] { text-align: right; }
 input.votes-input   { text-align: right; }
 
+/* ── VOTE WRAP + SPINNERS ───────────────────────────────────── */
+.vote-wrap {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+}
+.vote-wrap .votes-input {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+}
+.vote-spinners {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  width: 14px;
+  border-left: 1px solid var(--border);
+}
+.vote-spinners button {
+  flex: 1;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-size: 8px;
+  color: var(--text-muted);
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.vote-spinners button:hover { background: var(--accent-bg); color: var(--accent); }
+.vote-spinners button:first-child { border-bottom: 1px solid var(--border); }
+
 /* ── NAME + SIGLAS CELL ─────────────────────────────────────── */
 #votes-table .name-wrapper {
   display: flex;
