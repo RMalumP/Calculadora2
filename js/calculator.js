@@ -34,28 +34,32 @@ function calculate() {
   const existingNames = new Set();
   allRows.forEach(tr => {
     if (tr.dataset.isOtros) return;
-    const name = tr.querySelector('input[type=text]')?.value.trim();
+    const name = tr.querySelector('.name-input')?.value.trim();
     if (name) existingNames.add(name);
   });
 
   let unnamedCounter = 1;
-  while (existingNames.has(toRoman(unnamedCounter))) unnamedCounter++;
+  while (existingNames.has('Partido ' + toRoman(unnamedCounter))) unnamedCounter++;
 
   const normalParties = [];
   allRows.forEach(tr => {
     if (tr.dataset.isOtros) return;
-    let name   = tr.querySelector('input[type=text]')?.value.trim() || '';
-    const votes = parseFloat(tr.querySelector('input[type=number]')?.value) || 0;
-    const color = tr.querySelector('input[type=color]')?.value || '#888888';
+    let name     = tr.querySelector('.name-input')?.value.trim() || '';
+    const siglas = tr.querySelector('.siglas-input')?.value.trim() || '';
+    const votes  = parseFloat(tr.querySelector('input[type=number]')?.value) || 0;
+    const color  = tr.querySelector('input[type=color]')?.value || '#888888';
     if (!name && votes === 0) return;
     if (!name && votes > 0) {
-      name = toRoman(unnamedCounter);
-      tr.querySelector('input[type=text]').value = name;
+      const roman = toRoman(unnamedCounter);
+      name = 'Partido ' + roman;
+      tr.querySelector('.name-input').value = name;
+      const siglasInp = tr.querySelector('.siglas-input');
+      if (siglasInp && !siglasInp.value.trim()) siglasInp.value = roman;
       existingNames.add(name);
       unnamedCounter++;
-      while (existingNames.has(toRoman(unnamedCounter))) unnamedCounter++;
+      while (existingNames.has('Partido ' + toRoman(unnamedCounter))) unnamedCounter++;
     }
-    normalParties.push({ name, votes, color, tr });
+    normalParties.push({ name, siglas, votes, color, tr });
   });
 
   // ── PASO 2: Total válido ──
@@ -75,7 +79,7 @@ function calculate() {
   const excludedBarrier = normalParties.filter(p => p.votes > 0 && p.votes < barrierVotes);
 
   let allocated = allocateSeats(
-    eligible.map(p => ({ name: p.name, votes: p.votes, color: p.color })),
+    eligible.map(p => ({ name: p.name, siglas: p.siglas, votes: p.votes, color: p.color })),
     seatsToAllocate, formula
   );
   applyBonus(allocated, bonus, totalSeats, bonusMode);
@@ -103,7 +107,7 @@ function calculate() {
   toAbsorb.forEach(p => {
     const absorbName = p.name || _nextSinNombre();
     if (!absorbedMap.has(absorbName)) {
-      absorbedMap.set(absorbName, { name: absorbName, votes: p.votes, color: p.color || '#888888' });
+      absorbedMap.set(absorbName, { name: absorbName, siglas: p.siglas || '', votes: p.votes, color: p.color || '#888888' });
     }
     p.tr.remove();
   });
@@ -126,7 +130,7 @@ function calculate() {
   const noVotes2         = remainingNormal.filter(p => p.votes === 0);
 
   allocated = allocateSeats(
-    eligible2.map(p => ({ name: p.name, votes: p.votes, color: p.color })),
+    eligible2.map(p => ({ name: p.name, siglas: p.siglas, votes: p.votes, color: p.color })),
     seatsToAllocate, formula
   );
   applyBonus(allocated, bonus, totalSeats, bonusMode);
@@ -161,6 +165,7 @@ function displayResults(allocated, totalValid, totalSeats, formula, excludedBarr
     const diffColor = diff > 0 ? 'color:#6b2020' : diff < 0 ? 'color:#20506b' : 'color:var(--text-muted)';
     const barW     = Math.min(p.seats / totalSeats * 100 * 1.8, 120);
     const color    = p.color || '#888888';
+    const siglasDisplay = (typeof siglasVisible !== 'undefined' && siglasVisible) ? '' : 'display:none';
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td style="font-size:0.88rem">
@@ -168,6 +173,7 @@ function displayResults(allocated, totalValid, totalSeats, formula, excludedBarr
           <span class="color-swatch" style="background:${color}"></span>${p.name}
         </div>
       </td>
+      <td class="siglas-col" style="font-size:0.82rem;${siglasDisplay}">${p.siglas || ''}</td>
       <td style="text-align:right;font-variant-numeric:tabular-nums;font-size:0.82rem">${p.votes.toLocaleString('es-ES')}</td>
       <td class="pct-cell" style="font-size:0.82rem">${votePct}%</td>
       <td>
@@ -207,7 +213,7 @@ function highlightInputTable(allocated, formula) {
       .map(tr => tr.querySelector('input[type=text]')?.value.trim()).filter(Boolean));
     const winnerName = allocated.find(a => a.seats > 0)?.name;
     inputRows.forEach(tr => {
-      const name  = tr.querySelector('input[type=text]')?.value.trim();
+      const name  = tr.querySelector('.name-input')?.value.trim();
       const votes = parseFloat(tr.querySelector('input[type=number]')?.value) || 0;
       if (name && votes > 0) {
         if (!srNames.has(name)) tr.classList.add('no-seats');
@@ -217,7 +223,7 @@ function highlightInputTable(allocated, formula) {
   } else {
     allocated.forEach(result => {
       inputRows.forEach(tr => {
-        const nameInput = tr.querySelector('input[type=text]');
+        const nameInput = tr.querySelector('.name-input');
         if (nameInput && nameInput.value.trim() === result.name && result.seats === 0 && !result.noVotes) {
           tr.classList.add(result.excludedBarrier ? 'barrier-blocked' : 'no-seats');
         }
@@ -338,25 +344,28 @@ function prepareSecondRound() {
   const existingNames = new Set();
   rows.forEach(tr => {
     if (tr.dataset.isOtros) return;
-    const name = tr.querySelector('input[type=text]')?.value.trim();
+    const name = tr.querySelector('.name-input')?.value.trim();
     if (name) existingNames.add(name);
   });
 
   let unnamedCounter = 1;
-  while (existingNames.has(toRoman(unnamedCounter))) unnamedCounter++;
+  while (existingNames.has('Partido ' + toRoman(unnamedCounter))) unnamedCounter++;
 
   const parties = [];
   rows.forEach(tr => {
     if (tr.dataset.isOtros) return;
-    let name  = tr.querySelector('input[type=text]')?.value.trim() || '';
+    let name   = tr.querySelector('.name-input')?.value.trim() || '';
     const votes = parseFloat(tr.querySelector('input[type=number]').value) || 0;
     const color = tr.querySelector('input[type=color]')?.value || '#888888';
     if (!name && votes > 0) {
-      name = toRoman(unnamedCounter);
-      tr.querySelector('input[type=text]').value = name;
+      const roman = toRoman(unnamedCounter);
+      name = 'Partido ' + roman;
+      tr.querySelector('.name-input').value = name;
+      const siglasInp = tr.querySelector('.siglas-input');
+      if (siglasInp && !siglasInp.value.trim()) siglasInp.value = roman;
       existingNames.add(name);
       unnamedCounter++;
-      while (existingNames.has(toRoman(unnamedCounter))) unnamedCounter++;
+      while (existingNames.has('Partido ' + toRoman(unnamedCounter))) unnamedCounter++;
     }
     if (name && votes > 0) parties.push({ name, votes, color });
   });
