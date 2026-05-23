@@ -1,0 +1,272 @@
+/* ── RIGHT PANEL (PARAMS) ───────────────────────────────────── */
+.param-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  max-width: 240px;
+}
+.param-card-header {
+  background: #2e2622;
+  color: #bcb4aa;
+  padding: 9px 14px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.param-body { padding: 14px; display: flex; flex-direction: column; gap: 14px; }
+
+.param-field label {
+  display: block;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.param-field input {
+  font-family: 'Libre Baskerville', serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--accent);
+  border: none;
+  background: none;
+  outline: none;
+  width: 100%;
+  border-bottom: 2px solid var(--border);
+  padding-bottom: 3px;
+  transition: border-color 0.15s;
+}
+.param-field input:focus { border-bottom-color: var(--accent); }
+.param-field small {
+  display: block;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-top: 3px;
+}
+.param-field label[onclick]:hover { color: var(--accent) !important; }
+
+/* ── FORMULA DROPDOWN ───────────────────────────────────────── */
+.formula-field label {
+  display: block;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.formula-select-wrap { position: relative; }
+.formula-select-wrap select {
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 30px 8px 10px;
+  font-family: 'Source Sans 3', sans-serif;
+  font-size: 0.85rem;
+  color: var(--text);
+  cursor: pointer;
+  outline: none;
+  transition: border-color var(--transition), background var(--transition), box-shadow var(--transition);
+}
+.formula-select-wrap select:focus {
+  border-color: var(--accent);
+  background: var(--surface);
+  box-shadow: 0 0 0 3px var(--accent-pale);
+}
+.formula-select-wrap::after {
+  content: '▾';
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--accent);
+  pointer-events: none;
+  font-size: 0.8rem;
+}
+.formula-desc {
+  margin-top: 6px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-style: italic;
+  line-height: 1.45;
+  min-height: 2.8em;
+}
+
+/* ── CALCULATE BUTTON ───────────────────────────────────────── */
+.calc-btn {
+  width: 100%;
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 12px 16px;
+  font-family: 'Libre Baskerville', serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  border-radius: var(--radius);
+  transition: background var(--transition), transform var(--transition), box-shadow var(--transition);
+  box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255,255,255,0.1);
+  text-transform: uppercase;
+}
+.calc-btn:hover { background: var(--accent-light); transform: translateY(-1px); box-shadow: var(--shadow-lg); }
+.calc-btn:active { transform: translateY(0); box-shadow: var(--shadow); }
+
+/* ── GHOST BUTTON ───────────────────────────────────────────── */
+.ghost-btn {
+  background: none;
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #a09890;
+  padding: 4px 12px;
+  border-radius: var(--radius);
+  font-size: 0.74rem;
+  cursor: pointer;
+  font-family: 'Source Sans 3', sans-serif;
+  font-weight: 600;
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
+}
+.ghost-btn:hover {
+  background: rgba(255,255,255,0.1);
+  color: #d0c8c0;
+  border-color: rgba(255,255,255,0.25);
+}
+
+/* ── DELETE BUTTON ──────────────────────────────────────────── */
+.del-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #c0a8a8;
+  padding: 2px 5px;
+  font-size: 11px;
+  border-radius: 3px;
+  transition: color var(--transition), background var(--transition);
+}
+.del-btn:hover { color: var(--accent); background: var(--accent-pale); }
+
+/* ── BONUS ACTIVE ───────────────────────────────────────────── */
+.bonus-active { background: var(--accent) !important; color: white !important; }
+
+/* ── COLOR SWATCH ───────────────────────────────────────────── */
+.color-swatch {
+  display: inline-block;
+  width: 10px; height: 10px;
+  border-radius: 2px;
+  border: 1px solid rgba(0,0,0,0.12);
+  flex-shrink: 0;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+}
+
+/* ── RESULTS TABLE ──────────────────────────────────────────── */
+#results-card { display: none; }
+
+.result-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: white;
+  border-radius: 3px;
+  padding: 2px 7px;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  min-width: 30px;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.seats-bar-wrap { display: flex; align-items: center; gap: 6px; }
+.seats-bar {
+  height: 6px;
+  background: var(--accent);
+  border-radius: 3px;
+  opacity: 0.45;
+  min-width: 2px;
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.formula-tag {
+  display: inline-block;
+  font-size: 0.68rem;
+  background: var(--accent-pale);
+  color: var(--accent);
+  border: 1px solid rgba(139,31,31,0.2);
+  border-radius: 3px;
+  padding: 2px 8px;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+}
+
+/* ── LAST SEAT INFO ─────────────────────────────────────────── */
+.last-seat-info {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-lg);
+  padding: 10px 14px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+.last-seat-info strong { color: var(--text); font-weight: 600; }
+
+/* ── BREAKDOWN TABLE ────────────────────────────────────────── */
+#breakdown-table { width: 100%; border-collapse: collapse; }
+#breakdown-table th, #breakdown-table td {
+  border: 1px solid var(--border-light);
+  padding: 4px 6px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+#breakdown-table thead th {
+  background: #2e2622;
+  color: #cec6bc;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+#breakdown-table tbody th {
+  background: var(--row-alt);
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.8rem;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#breakdown-table td.seat-won {
+  background: #fad0d0;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+/* ── ROW HIGHLIGHT STATES ───────────────────────────────────── */
+tbody tr.no-seats       { background: #fdeaea !important; }
+tbody tr.barrier-blocked { background: #fdd8d8 !important; }
+tbody tr.no-seats:hover       { background: #fad8d8 !important; }
+tbody tr.barrier-blocked:hover { background: #f8c8c8 !important; }
+
+/* ── SECTION NOTE ───────────────────────────────────────────── */
+.section-note {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 5px 16px 8px;
+  border-top: 1px solid var(--border-light);
+  background: var(--row-alt);
+}
+
+/* ── ANIMATIONS ─────────────────────────────────────────────── */
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+#results-card.visible { animation: fadeSlideIn 0.25s ease; }

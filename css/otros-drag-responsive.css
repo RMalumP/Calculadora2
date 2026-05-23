@@ -1,0 +1,167 @@
+/* ── OTROS PARTIDOS PANEL ───────────────────────────────────── */
+.otros-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  font-style: italic;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  user-select: none;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: 'Source Sans 3', sans-serif;
+}
+.otros-label .otros-arrow {
+  font-size: 0.65rem;
+  color: var(--accent-light);
+  transition: transform 0.15s;
+}
+.otros-label.open .otros-arrow { transform: rotate(180deg); }
+
+.otros-dropdown {
+  display: none;
+  margin-top: 4px;
+  background: var(--row-alt);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: 4px 0;
+  width: 100%;
+}
+.otros-dropdown-title {
+  padding: 3px 10px 5px;
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border-light);
+  margin-bottom: 3px;
+}
+.otros-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px 2px 10px;
+  font-size: 0.8rem;
+  color: var(--text);
+}
+.otros-dropdown-item .otros-swatch {
+  width: 8px; height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  border: 1px solid rgba(0,0,0,0.12);
+}
+.otros-dropdown-item .otros-item-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.otros-dropdown-item .otros-item-votes-input {
+  width: 72px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: var(--surface);
+  font-family: 'Source Sans 3', sans-serif;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  text-align: right;
+  padding: 1px 4px;
+  flex-shrink: 0;
+}
+.otros-dropdown-item .otros-item-votes-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: #fffef9;
+}
+.otros-dropdown-item.manual .otros-item-name {
+  font-style: italic;
+  color: var(--text-muted);
+}
+.otros-dropdown-empty {
+  padding: 3px 10px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+.otros-name-cell { display: block; }
+
+.otros-eject-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 10px;
+  padding: 1px 5px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  flex-shrink: 0;
+  transition: background var(--transition), color var(--transition);
+}
+.otros-eject-btn:hover { background: var(--accent-pale); color: var(--accent); border-color: var(--accent-light); }
+
+/* ── ROW ACTION BUTTONS ─────────────────────────────────────── */
+.row-actions { display: flex; flex-direction: column; gap: 2px; align-items: center; }
+.row-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 8px;
+  padding: 0px 3px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  white-space: nowrap;
+}
+.row-btn:hover { background: var(--accent-pale); color: var(--accent); border-color: var(--accent-light); }
+.row-btn.locked { background: #fff3cd; color: #856404; border-color: #ffc107; }
+.row-btn.locked:hover { background: #ffe680; }
+
+/* ── DRAG & DROP ────────────────────────────────────────────── */
+.drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px; height: 20px;
+  cursor: grab;
+  color: #bdb5ad;
+  font-size: 12px;
+  border-radius: 3px;
+  transition: color var(--transition), background var(--transition);
+  user-select: none;
+  line-height: 1;
+}
+.drag-handle:hover { color: var(--accent-light); background: var(--accent-pale); }
+.drag-handle:active { cursor: grabbing; }
+
+tr.dragging              { opacity: 0.45; background: var(--accent-pale) !important; }
+tr.drag-over-above       { border-top: 2px solid var(--accent) !important; }
+tr.drag-over-below       { border-bottom: 2px solid var(--accent) !important; }
+
+/* ── THEORY TAB ─────────────────────────────────────────────── */
+.theory-content-section        { display: none; }
+.theory-content-section.active { display: block; }
+
+.theory-system-btn:hover  { background: var(--accent-bg) !important; }
+.theory-system-btn.active { background: var(--accent) !important; color: white !important; }
+
+/* ── RESPONSIVE ─────────────────────────────────────────────── */
+@media (min-width: 701px) {
+  #votes-table { width: 593px; }
+}
+
+@media (max-width: 700px) {
+  header { padding: 14px; flex-direction: column; gap: 3px; }
+  .main  { padding: 14px 10px 40px; }
+  .workspace { grid-template-columns: 1fr; }
+  .col-left        { grid-column: 1; grid-row: 1; }
+  .col-right       { grid-column: 1; grid-row: 2; }
+  .col-breakdown   { grid-column: 1; grid-row: 3; }
+  .col-second-round{ grid-column: 1; grid-row: 4; }
+  .col-results     { grid-column: 1; grid-row: 5; }
+  td, th { padding: 5px 7px; }
+}

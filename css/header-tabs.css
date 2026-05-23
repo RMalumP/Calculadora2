@@ -1,0 +1,97 @@
+/* ── HEADER ─────────────────────────────────────────────────── */
+header {
+  background: var(--header-bg);
+  color: var(--header-text);
+  padding: 20px 40px;
+  border-bottom: 3px solid var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  position: relative;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+}
+
+/* Extend header background when breakdown is visible */
+body.breakdown-visible header::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 100%;
+  width: var(--breakdown-width, 240px);
+  height: 100%;
+  background: var(--header-bg);
+  border-bottom: 3px solid var(--accent);
+  pointer-events: none;
+  z-index: -1;
+}
+
+header h1 {
+  font-family: 'Libre Baskerville', serif;
+  font-size: 1.55rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+header span {
+  font-size: 0.78rem;
+  color: #8a827a;
+  font-style: italic;
+  letter-spacing: 0.06em;
+}
+
+.save-icon-btn {
+  margin-left: auto;
+  align-self: center;
+  background: none;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: var(--radius);
+  color: #8a7f78;
+  font-size: 1rem;
+  padding: 5px 10px;
+  cursor: pointer;
+  line-height: 1;
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
+}
+.save-icon-btn:hover {
+  background: rgba(255,255,255,0.08);
+  color: #d0c8c0;
+  border-color: rgba(255,255,255,0.2);
+}
+
+/* ── TABS ─────────────────────────────────────────────────── */
+.tabs-container {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 40px;
+  display: flex;
+  gap: 2px;
+  box-shadow: 0 1px 0 var(--border);
+}
+
+.tab {
+  background: none;
+  border: none;
+  padding: 13px 22px;
+  font-family: 'Source Sans 3', sans-serif;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: all var(--transition);
+  position: relative;
+  top: 1px;
+  letter-spacing: 0.01em;
+}
+.tab:hover {
+  color: var(--text);
+  background: var(--accent-bg);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.tab-content        { display: none; }
+.tab-content.active { display: block; }

@@ -1,0 +1,290 @@
+/**
+ * rows.js
+ * Gestión de las filas de la tabla de votos:
+ * construcción, inserción, eliminación, "Otros partidos".
+ */
+
+let rowCount = 0;
+let otrosAbsorbedParties = [];
+let _sinNombreCounter = 0;
+
+/* ── Utilidades ── */
+
+function toRoman(num) {
+  const vals = [
+    [1000,'M'],[900,'CM'],[500,'D'],[400,'CD'],
+    [100,'C'],[90,'XC'],[50,'L'],[40,'XL'],
+    [10,'X'],[9,'IX'],[5,'V'],[4,'IV'],[1,'I']
+  ];
+  let result = '';
+  for (const [v, s] of vals) {
+    while (num >= v) { result += s; num -= v; }
+  }
+  return result;
+}
+
+function _nextSinNombre() {
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  let n = _sinNombreCounter++, label = '';
+  do { label = letters[n % 26] + label; n = Math.floor(n / 26) - 1; } while (n >= 0);
+  return 'Partido ' + label;
+}
+
+/* ── Gestión de la fila "Otros partidos" ── */
+
+function getOrCreateOtrosRow() {
+  const tbody = document.getElementById('votes-body');
+  let otrosRow = tbody.querySelector('tr[data-is-otros="true"]');
+  if (!otrosRow) {
+    otrosRow = _buildRow('Otros partidos', '', '#474747', true);
+    tbody.appendChild(otrosRow);
+  }
+  return otrosRow;
+}
+
+function enforceOtrosLast() {
+  const tbody = document.getElementById('votes-body');
+  const otrosRow = getOrCreateOtrosRow();
+  if (tbody.lastElementChild !== otrosRow) tbody.appendChild(otrosRow);
+}
+
+/* ── Construcción de filas ── */
+
+function _buildRow(name, votes, color, isOtros) {
+  const colorVal = color || PALETTE[rowCount % PALETTE.length];
+  if (!isOtros) rowCount++;
+  const tr = document.createElement('tr');
+  tr.dataset.rowId = rowCount;
+  if (isOtros) tr.dataset.isOtros = 'true';
+
+  const deleteButton = isOtros
+    ? '<span style="width:24px;display:inline-block"></span>'
+    : '<button class="del-btn" onclick="delRow(this)" title="Eliminar">✕</button>';
+
+  const nameCell = isOtros
+    ? `<div class="otros-name-cell">
+        <button type="button" class="otros-label" onclick="toggleOtrosDropdown(this)" title="Ver partidos incluidos">
+          Otros partidos <span class="otros-arrow">▼</span>
+        </button>
+        <div class="otros-dropdown" style="display:none"></div>
+        <input type="text" value="Otros partidos" readonly style="display:none">
+       </div>`
+    : `<input type="text" placeholder="Nombre del partido" value="${name}">`;
+
+  const actionsCell = isOtros ? '' :
+    '<div class="row-actions">' +
+    '<button class="row-btn btn-to-otros" title="Mover a Otros partidos">\u2192</button>' +
+    '<button class="row-btn btn-lock" title="Bloquear absorci\u00f3n autom\u00e1tica">\uD83D\uDD12</button>' +
+    '</div>';
+
+  const dragHandle = isOtros
+    ? '<span style="width:18px;display:inline-block"></span>'
+    : '<span class="drag-handle" title="Arrastrar para reordenar">⠿</span>';
+
+  tr.innerHTML = `
+    <td style="white-space:nowrap;padding:2px 2px 2px 4px">${dragHandle}${deleteButton}</td>
+    <td style="text-align:center;padding:1px 2px">${actionsCell}</td>
+    <td style="text-align:center;padding:4px 6px"><input type="color" value="${colorVal}" title="Color del partido" ${isOtros ? 'disabled style="cursor:not-allowed"' : ''}></td>
+    <td>${nameCell}</td>
+    <td><input type="number" min="0" placeholder="0" value="${votes}" ${isOtros ? 'data-otros-main="true"' : ''} oninput="updateTotals(); updateSecondRoundIfActive();"></td>
+    <td class="pct-cell pct-display">—</td>`;
+
+  // Lógica especial para "Otros partidos"
+  if (isOtros) {
+    const otrosVotesInput = tr.querySelector('input[data-otros-main]');
+    otrosVotesInput.addEventListener('input', function () {
+      const entered = parseFloat(this.value) || 0;
+      const corrected = syncManualFromMain(entered);
+      if (corrected !== entered) this.value = corrected || '';
+      updateOtrosDropdown();
+      updateTotals();
+      updateSecondRoundIfActive();
+    });
+  }
+
+  // Botones de acción para filas normales
+  if (!isOtros) {
+    tr.querySelector('.btn-to-otros').addEventListener('click', () => moveRowToOtros(tr));
+    tr.querySelector('.btn-lock').addEventListener('click', function () {
+      const isLocked = tr.dataset.locked === 'true';
+      tr.dataset.locked = isLocked ? 'false' : 'true';
+      this.classList.toggle('locked', !isLocked);
+      this.title = !isLocked ? 'Bloqueado: no se absorberá automáticamente' : 'Bloquear absorción automática';
+    });
+
+    const nameInput = tr.querySelector('input[type=text]');
+    nameInput.addEventListener('input', function () {
+      const otrosRow = getOrCreateOtrosRow();
+      const prevOfOtros = otrosRow.previousElementSibling;
+      if (tr === prevOfOtros && this.value.length > 0) {
+        _insertBeforeOtros('', '', '', false);
+      }
+      updateSecondRoundIfActive();
+    });
+
+    tr.querySelector('input[type=color]').addEventListener('input', updateSecondRoundIfActive);
+  }
+
+  return tr;
+}
+
+/* ── Inserción de filas ── */
+
+function _insertBeforeOtros(name, votes, color, isOtros) {
+  const tbody = document.getElementById('votes-body');
+  const otrosRow = getOrCreateOtrosRow();
+  const tr = _buildRow(name, votes, color, isOtros);
+  tbody.insertBefore(tr, otrosRow);
+  return tr;
+}
+
+/**
+ * API pública:
+ * - isOtros=true  → coloca "Otros partidos" al final (idempotente)
+ * - isOtros=false → inserta una fila antes de "Otros partidos"
+ */
+function addRow(name = '', votes = '', color = '', isOtros = false) {
+  if (isOtros) {
+    const tbody = document.getElementById('votes-body');
+    const existing = tbody.querySelector('tr[data-is-otros="true"]');
+    if (!existing) {
+      const tr = _buildRow(name, votes, color, true);
+      tbody.appendChild(tr);
+    }
+    enforceOtrosLast();
+    updateTotals();
+    return;
+  }
+  _insertBeforeOtros(name, votes, color, false);
+  enforceOtrosLast();
+  updateTotals();
+}
+
+function delRow(btn) {
+  btn.closest('tr').remove();
+  enforceOtrosLast();
+  updateTotals();
+}
+
+function getPartyRows() {
+  return [...document.querySelectorAll('#votes-body tr')].filter(tr => tr.style.display !== 'none');
+}
+
+function getAllPartyRows() {
+  return [...document.querySelectorAll('#votes-body tr')];
+}
+
+/* ── Desplegable "Otros partidos" ── */
+
+function toggleOtrosDropdown(btn) {
+  const dropdown = btn.nextElementSibling;
+  const isOpen = dropdown.style.display === 'block';
+  dropdown.style.display = isOpen ? 'none' : 'block';
+  btn.classList.toggle('open', !isOpen);
+}
+
+function updateOtrosDropdown() {
+  const otrosRow = getOrCreateOtrosRow();
+  if (!otrosRow) return;
+  const dropdown = otrosRow.querySelector('.otros-dropdown');
+  if (!dropdown) return;
+
+  const wasOpen = dropdown.style.display === 'block';
+  dropdown.innerHTML = '';
+
+  if (otrosAbsorbedParties.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'otros-dropdown-empty';
+    empty.textContent = 'Ninguno';
+    dropdown.appendChild(empty);
+    dropdown.style.display = wasOpen ? 'block' : 'none';
+    return;
+  }
+
+  otrosAbsorbedParties.forEach((p, idx) => {
+    const item = document.createElement('div');
+    item.className = 'otros-dropdown-item' + (p.isManual ? ' manual' : '');
+
+    const swatch = document.createElement('span');
+    swatch.className = 'otros-swatch';
+    swatch.style.background = p.color || '#888888';
+    item.appendChild(swatch);
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'otros-item-name';
+    nameSpan.textContent = p.isManual ? 'Otros (manual)' : p.name;
+    item.appendChild(nameSpan);
+
+    const votesInput = document.createElement('input');
+    votesInput.type = 'number';
+    votesInput.min = '0';
+    votesInput.className = 'otros-item-votes-input';
+    votesInput.value = p.votes;
+    votesInput.addEventListener('input', function () {
+      otrosAbsorbedParties[idx].votes = parseFloat(this.value) || 0;
+      recalcOtrosTotal();
+    });
+    item.appendChild(votesInput);
+
+    if (!p.isManual) {
+      const ejectBtn = document.createElement('button');
+      ejectBtn.className = 'otros-eject-btn';
+      ejectBtn.textContent = '←';
+      ejectBtn.title = 'Sacar a la tabla principal';
+      ejectBtn.addEventListener('click', () => ejectFromOtros(idx));
+      item.appendChild(ejectBtn);
+    }
+
+    dropdown.appendChild(item);
+  });
+
+  dropdown.style.display = wasOpen ? 'block' : 'none';
+}
+
+function recalcOtrosTotal() {
+  const otrosRow = getOrCreateOtrosRow();
+  if (!otrosRow) return;
+  const mainInput = otrosRow.querySelector('input[data-otros-main]');
+  if (!mainInput) return;
+  const total = otrosAbsorbedParties.reduce((s, p) => s + (p.votes || 0), 0);
+  mainInput.value = total > 0 ? total : '';
+  updateTotals();
+}
+
+function syncManualFromMain(newTotal) {
+  const fixedSum = otrosAbsorbedParties.filter(p => !p.isManual).reduce((s, p) => s + (p.votes || 0), 0);
+  const clampedTotal = Math.max(newTotal, fixedSum);
+  const manualVotes = clampedTotal - fixedSum;
+  const idx = otrosAbsorbedParties.findIndex(p => p.isManual);
+
+  if (manualVotes > 0) {
+    if (idx >= 0) otrosAbsorbedParties[idx].votes = manualVotes;
+    else otrosAbsorbedParties.unshift({ name: 'Manual', votes: manualVotes, isManual: true, color: '#888888' });
+  } else {
+    if (idx >= 0) otrosAbsorbedParties.splice(idx, 1);
+  }
+  return clampedTotal;
+}
+
+function moveRowToOtros(tr) {
+  const name  = tr.querySelector('input[type=text]')?.value.trim() || _nextSinNombre();
+  const votes = parseFloat(tr.querySelector('input[type=number]')?.value) || 0;
+  const color = tr.querySelector('input[type=color]')?.value || '#888888';
+
+  const already = otrosAbsorbedParties.find(p => !p.isManual && p.name === name);
+  if (!already) otrosAbsorbedParties.push({ name, votes, color });
+
+  tr.remove();
+  enforceOtrosLast();
+  recalcOtrosTotal();
+  updateOtrosDropdown();
+}
+
+function ejectFromOtros(idx) {
+  const p = otrosAbsorbedParties[idx];
+  if (!p || p.isManual) return;
+  otrosAbsorbedParties.splice(idx, 1);
+  _insertBeforeOtros(p.name, p.votes, p.color, false);
+  recalcOtrosTotal();
+  updateOtrosDropdown();
+}
