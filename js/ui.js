@@ -6,6 +6,7 @@
 /* ── SIGLAS ───────────────────────────────────────────────── */
 
 let siglasVisible = false;
+let namesHidden = false;
 
 function toggleSiglasVisibility() {
   siglasVisible = !siglasVisible;
@@ -18,6 +19,29 @@ function toggleSiglasVisibility() {
 
   document.querySelectorAll('.result-siglas-prefix').forEach(el => {
     el.style.display = siglasVisible ? '' : 'none';
+  });
+
+  const hideNamesBtn = document.getElementById('hide-names-btn');
+  if (hideNamesBtn) hideNamesBtn.style.display = siglasVisible ? '' : 'none';
+
+  if (!siglasVisible && namesHidden) {
+    namesHidden = false;
+    if (hideNamesBtn) hideNamesBtn.textContent = 'no mostrar nombre';
+    document.querySelectorAll('#votes-body .name-input').forEach(inp => {
+      inp.style.color = '';
+      inp.style.display = '';
+    });
+  }
+}
+
+function toggleHideNames() {
+  namesHidden = !namesHidden;
+  const btn = document.getElementById('hide-names-btn');
+  if (btn) btn.textContent = namesHidden ? 'mostrar nombre' : 'no mostrar nombre';
+
+  document.querySelectorAll('#votes-body .name-input').forEach(inp => {
+    inp.style.color = namesHidden ? '#8b3131' : '';
+    inp.style.display = namesHidden ? 'none' : '';
   });
 }
 

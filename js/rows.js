@@ -131,6 +131,10 @@ function _buildRow(name, votes, color, isOtros) {
       const siglasInp = tr.querySelector('.siglas-input');
       if (siglasInp) siglasInp.classList.add('siglas-visible');
     }
+    if (typeof namesHidden !== 'undefined' && namesHidden) {
+      const nameInp = tr.querySelector('.name-input');
+      if (nameInp) { nameInp.style.color = '#8b3131'; nameInp.style.display = 'none'; }
+    }
   }
 
   return tr;
