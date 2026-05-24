@@ -68,6 +68,11 @@ function _nextSinNombre() {
   return 'Partido ' + label;
 }
 
+function _extractSiglasFromName(name) {
+  const match = name.match(/^Partido\s+([A-Za-z0-9]+)$/);
+  return match ? match[1].toUpperCase() : '';
+}
+
 /* ── Gestión de la fila "Otros partidos" ── */
 
 function getOrCreateOtrosRow() {
@@ -167,14 +172,6 @@ function _buildRow(name, votes, color, isOtros) {
         this.classList.add('names-hidden-mode');
         if (this.value.trim()) this.classList.add('names-has-value');
         else this.classList.remove('names-has-value');
-      }
-      const name = this.value.trim();
-      const match = name.match(/^Partido\s+([A-Za-z0-9]{1,6})$/);
-      if (match) {
-        const siglasInp = tr.querySelector('.siglas-input');
-        if (siglasInp && !siglasInp.value.trim()) {
-          siglasInp.value = match[1].toUpperCase();
-        }
       }
       const otrosRow = getOrCreateOtrosRow();
       const prevOfOtros = otrosRow.previousElementSibling;
@@ -379,9 +376,11 @@ function syncManualFromMain(newTotal) {
 
 function moveRowToOtros(tr) {
   const name   = tr.querySelector('.name-input')?.value.trim() || _nextSinNombre();
-  const siglas = tr.querySelector('.siglas-input')?.value.trim() || '';
+  let siglas = tr.querySelector('.siglas-input')?.value.trim() || '';
   const votes  = parseVoteValue(tr.querySelector('.votes-input')?.value);
   const color  = tr.querySelector('input[type=color]')?.value || '#888888';
+
+  if (!siglas) siglas = _extractSiglasFromName(name);
 
   const already = otrosAbsorbedParties.find(p => !p.isManual && p.name === name);
   if (!already) otrosAbsorbedParties.push({ name, siglas, votes, color });

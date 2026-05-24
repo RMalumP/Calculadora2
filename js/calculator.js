@@ -116,8 +116,10 @@ function calculate() {
 
   toAbsorb.forEach(p => {
     const absorbName = p.name || _nextSinNombre();
+    let absorbSiglas = p.siglas || '';
+    if (!absorbSiglas) absorbSiglas = _extractSiglasFromName(absorbName);
     if (!absorbedMap.has(absorbName)) {
-      absorbedMap.set(absorbName, { name: absorbName, siglas: p.siglas || '', votes: p.votes, color: p.color || '#888888' });
+      absorbedMap.set(absorbName, { name: absorbName, siglas: absorbSiglas, votes: p.votes, color: p.color || '#888888' });
     }
     p.tr.remove();
   });
