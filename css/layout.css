@@ -238,5 +238,6 @@ input[type="color"]::-webkit-color-swatch { border: none; border-radius: 1px; }
 }
 
 /* ── OCULTAR NOMBRE ─────────────────────────────────────────── */
-input.names-hidden-mode { color: #8b3131; }
-input.names-hidden-mode::placeholder { color: #8b3131; }
+input.names-hidden-mode { color: #c07070; }                          /* rojo claro: placeholder vacío */
+input.names-hidden-mode::placeholder { color: #c07070; }
+input.names-hidden-mode.names-has-value { color: #8b3131; }          /* rojo oscuro: nombre real */

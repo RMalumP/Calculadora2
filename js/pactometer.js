@@ -24,7 +24,7 @@ function addPactometerRow(name = '', seats = '', color = '', block = '', siglas 
     <td style="text-align:center;padding:4px 6px"><input type="color" value="${colorVal}" title="Color del partido" onchange="updateHemicycle()"></td>
     <td><div style="display:flex;align-items:center;gap:4px;width:100%">
       <input type="text" class="pact-siglas-input" placeholder="Sig." maxlength="6" value="${siglas}" style="width:44px;flex-shrink:0;font-size:0.8rem;border:none;background:transparent;font-family:'Source Sans 3',sans-serif;outline:none;text-transform:uppercase;${pactSiglasVisible ? '' : 'display:none'}" oninput="this.value=this.value.toUpperCase()">
-      <input type="text" class="pact-name-input${(pactNamesHidden && !name) ? ' names-hidden-mode' : ''}" placeholder="Nombre del partido" value="${name}" style="flex:1;min-width:0;border:none;background:transparent;font-family:'Source Sans 3',sans-serif;font-size:14px;outline:none;color:inherit">
+      <input type="text" class="pact-name-input${pactNamesHidden ? (' names-hidden-mode' + (name ? ' names-has-value' : '')) : ''}" placeholder="Nombre del partido" value="${name}" style="flex:1;min-width:0;border:none;background:transparent;font-family:'Source Sans 3',sans-serif;font-size:14px;outline:none;color:inherit">
     </div></td>
     <td style="text-align:center"><input type="number" min="0" placeholder="0" value="${seats}" style="text-align:center;font-size:1.1rem;font-weight:600" oninput="updateHemicycle()"></td>
     <td style="text-align:center">
@@ -40,8 +40,9 @@ function addPactometerRow(name = '', seats = '', color = '', block = '', siglas 
 
   nameInput.addEventListener('input', function () {
     if (pactNamesHidden) {
-      if (this.value.trim()) this.classList.remove('names-hidden-mode');
-      else this.classList.add('names-hidden-mode');
+      this.classList.add('names-hidden-mode');
+      if (this.value.trim()) this.classList.add('names-has-value');
+      else this.classList.remove('names-has-value');
     }
     const allRows = [...document.querySelectorAll('#pactometer-body tr')];
     if (tr === allRows[allRows.length - 1] && this.value.length > 0) addPactometerRow();
@@ -57,7 +58,10 @@ function addPactometerRow(name = '', seats = '', color = '', block = '', siglas 
       nameInput.value = 'Partido ' + toRoman(counter);
       const siglasInp = tr.querySelector('.pact-siglas-input');
       if (siglasInp && !siglasInp.value.trim()) siglasInp.value = toRoman(counter);
-      if (pactNamesHidden) nameInput.classList.remove('names-hidden-mode');
+      if (pactNamesHidden) {
+        nameInput.classList.add('names-hidden-mode');
+        nameInput.classList.add('names-has-value');
+      }
     }
   });
 }
@@ -129,7 +133,7 @@ function updateHemicycle() {
       calculatedTotal += seats;
       if (block === 'left')  { leftSeats  += seats; leftColors.push({ seats, color, name, siglas }); }
       else if (block === 'right') { rightSeats += seats; rightColors.push({ seats, color, name, siglas }); }
-      else { abstentionSeats += seats; abstentionParties.push({ name, color, seats }); }
+      else { abstentionSeats += seats; abstentionParties.push({ name, color, seats, siglas }); }
     }
   });
 
@@ -142,12 +146,12 @@ function updateHemicycle() {
   const effectiveAbstentions = fixedTotal > calculatedTotal ? (fixedTotal - calculatedTotal + abstentionSeats) : abstentionSeats;
   document.getElementById('abstentions-count').textContent   = effectiveAbstentions || 0;
   document.getElementById('abstentions-percent').textContent = totalSeats > 0 ? `(${(effectiveAbstentions / totalSeats * 100).toFixed(1)}%)` : '';
-  const abstColorsEl = document.getElementById('abstentions-colors');
+  const abstColorsEl = document.getElementById('hemicycle-abstentions-swatches');
   abstColorsEl.innerHTML = '';
   abstentionParties.forEach(p => {
     const box = document.createElement('div');
-    box.title = `${p.name}: ${p.seats}`;
     box.style.cssText = `width:20px;height:20px;background:${p.color};border:1px solid rgba(0,0,0,0.2);border-radius:3px;cursor:help`;
+    _attachSwatchTooltip(box, p);
     abstColorsEl.appendChild(box);
   });
 
@@ -193,7 +197,8 @@ function updateHemicycle() {
     leftSwatches.innerHTML = '';
     leftColors.forEach(p => {
       const box = document.createElement('div');
-      box.style.cssText = `width:16px;height:16px;background:${p.color};border:1px solid rgba(0,0,0,0.2);border-radius:3px;flex-shrink:0`;
+      box.style.cssText = `width:16px;height:16px;background:${p.color};border:1px solid rgba(0,0,0,0.2);border-radius:3px;flex-shrink:0;cursor:help`;
+      _attachSwatchTooltip(box, p);
       leftSwatches.appendChild(box);
     });
   }
@@ -201,7 +206,8 @@ function updateHemicycle() {
     rightSwatches.innerHTML = '';
     rightColors.forEach(p => {
       const box = document.createElement('div');
-      box.style.cssText = `width:16px;height:16px;background:${p.color};border:1px solid rgba(0,0,0,0.2);border-radius:3px;flex-shrink:0`;
+      box.style.cssText = `width:16px;height:16px;background:${p.color};border:1px solid rgba(0,0,0,0.2);border-radius:3px;flex-shrink:0;cursor:help`;
+      _attachSwatchTooltip(box, p);
       rightSwatches.appendChild(box);
     });
   }
@@ -370,7 +376,7 @@ function togglePactSiglasVisibility() {
     pactNamesHidden = false;
     if (hideNamesBtn) hideNamesBtn.textContent = 'Ocultar nombre';
     document.querySelectorAll('#pactometer-body .pact-name-input').forEach(inp => {
-      inp.classList.remove('names-hidden-mode');
+      inp.classList.remove('names-hidden-mode', 'names-has-value');
     });
   }
 }
@@ -382,10 +388,11 @@ function togglePactHideNames() {
 
   document.querySelectorAll('#pactometer-body .pact-name-input').forEach(inp => {
     if (pactNamesHidden) {
-      if (!inp.value.trim()) inp.classList.add('names-hidden-mode');
-      else inp.classList.remove('names-hidden-mode');
+      inp.classList.add('names-hidden-mode');
+      if (inp.value.trim()) inp.classList.add('names-has-value');
+      else inp.classList.remove('names-has-value');
     } else {
-      inp.classList.remove('names-hidden-mode');
+      inp.classList.remove('names-hidden-mode', 'names-has-value');
     }
   });
 }
@@ -505,4 +512,20 @@ function _buildTooltipLabel(p) {
     return p.siglas + ' - ' + p.name;
   }
   return p.name;
+}
+
+function _attachSwatchTooltip(el, p) {
+  const tooltip = _getHemicycleTooltip();
+  el.addEventListener('mouseenter', function () {
+    const label = _buildTooltipLabel(p);
+    tooltip.textContent = p.seats ? label + ': ' + p.seats : label;
+    tooltip.style.display = 'block';
+  });
+  el.addEventListener('mousemove', function (e) {
+    tooltip.style.left = (e.clientX + 14) + 'px';
+    tooltip.style.top  = (e.clientY - 34) + 'px';
+  });
+  el.addEventListener('mouseleave', function () {
+    tooltip.style.display = 'none';
+  });
 }
