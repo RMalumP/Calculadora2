@@ -272,59 +272,23 @@ function _updateMajorityStatus(leftSeats, rightSeats, totalSeats, absoluteMajori
 }
 
 function _updateHemicycleSettings(leftSeats, rightSeats, totalSeats, absoluteMajority) {
-  const blockLabels     = document.getElementById('block-labels')?.value || 'izq-der';
-  const votingSettings  = document.getElementById('voting-settings');
-  const congressSettings = document.getElementById('congress-settings');
-  const votingResult    = document.getElementById('voting-result');
-  const isCongressMode  = currentSeatName === 'congresistas' || currentSeatName === 'escaños';
+  const blockLabels      = document.getElementById('block-labels')?.value || 'izq-der';
+  const votingResult     = document.getElementById('voting-result');
+  const isCongressMode   = currentSeatName === 'congresistas' || currentSeatName === 'escaños';
   const isConcejalesMode = currentSeatName === 'concejales';
-
-  if (blockLabels === 'no-si' || blockLabels === 'custom') {
-    votingSettings.style.display   = 'block';
-    congressSettings.style.display = 'none';
-  } else if (blockLabels === 'izq-der' && (isCongressMode || isConcejalesMode)) {
-    votingSettings.style.display   = 'none';
-    congressSettings.style.display = 'block';
-    const congressLabel = document.getElementById('congress-label');
-    if (congressLabel) congressLabel.textContent = isConcejalesMode ? 'Investidura alcaldía:' : 'Investidura en España:';
-    const congressRoundSelect = document.getElementById('congress-round');
-    if (congressRoundSelect) {
-      if (isConcejalesMode) {
-        if (congressRoundSelect.options.length !== 1 || congressRoundSelect.options[0].value !== 'first') {
-          congressRoundSelect.innerHTML = '<option value="first">Mayoría absoluta</option>';
-        }
-        congressRoundSelect.disabled = true;
-      } else {
-        if (congressRoundSelect.options.length !== 2) {
-          const savedVal = congressRoundSelect.value;
-          congressRoundSelect.innerHTML = `
-            <option value="first">Primera vuelta - Mayoría absoluta</option>
-            <option value="second">Segunda vuelta - Mayoría simple</option>`;
-          if (savedVal) congressRoundSelect.value = savedVal;
-        }
-        congressRoundSelect.disabled = false;
-      }
-    }
-  } else {
-    votingSettings.style.display   = 'none';
-    congressSettings.style.display = 'none';
-  }
 
   if (leftSeats === 0 && rightSeats === 0) { votingResult.style.display = 'none'; return; }
 
-  const threesFifths    = Math.floor(totalSeats * 3 / 5) + 1;
-  const twoThirds       = Math.floor(totalSeats * 2 / 3) + 1;
+  const threesFifths = Math.floor(totalSeats * 3 / 5) + 1;
+  const twoThirds    = Math.floor(totalSeats * 2 / 3) + 1;
+  const sel          = document.getElementById('settings-select')?.value || 'simple';
 
-  if (blockLabels === 'no-si' || blockLabels === 'custom') {
-    const requiredMajority = document.getElementById('required-majority')?.value || 'simple';
-    if (blockLabels === 'custom') {
-      _applyCustomVotingResult(votingResult, leftSeats, rightSeats, requiredMajority, absoluteMajority, threesFifths, twoThirds);
-    } else {
-      _applyVotingResult(votingResult, leftSeats, rightSeats, requiredMajority, absoluteMajority, threesFifths, twoThirds, null, null, true);
-    }
+  if (blockLabels === 'no-si') {
+    _applyVotingResult(votingResult, leftSeats, rightSeats, sel, absoluteMajority, threesFifths, twoThirds, null, null, true);
+  } else if (blockLabels === 'custom') {
+    _applyCustomVotingResult(votingResult, leftSeats, rightSeats, sel, absoluteMajority, threesFifths, twoThirds);
   } else if (blockLabels === 'izq-der' && (isCongressMode || isConcejalesMode)) {
-    const congressRound = document.getElementById('congress-round')?.value || 'first';
-    _applyVotingResult(votingResult, leftSeats, rightSeats, congressRound === 'first' ? 'absolute' : 'simple', absoluteMajority, threesFifths, twoThirds, currentLeftLabel, currentRightLabel, false);
+    _applyVotingResult(votingResult, leftSeats, rightSeats, sel === 'first' ? 'absolute' : 'simple', absoluteMajority, threesFifths, twoThirds, currentLeftLabel, currentRightLabel, false);
   } else {
     votingResult.style.display = 'none';
   }
@@ -474,8 +438,11 @@ function _updateVotingPanelToggle() {
   const show = blockLabels === 'no-si' || blockLabels === 'custom' ||
                (blockLabels === 'izq-der' && (isCongressMode || isConcejalesMode));
 
-  const btn     = document.getElementById('voting-panel-toggle');
-  const wrapper = document.getElementById('voting-panel-wrapper');
+  const btn      = document.getElementById('voting-panel-toggle');
+  const wrapper  = document.getElementById('voting-panel-wrapper');
+  const combined = document.getElementById('combined-settings');
+  const settingsLabel  = document.getElementById('settings-label');
+  const settingsSelect = document.getElementById('settings-select');
 
   if (show) {
     if (btn) {
@@ -483,9 +450,44 @@ function _updateVotingPanelToggle() {
       btn.textContent = votingPanelOpen ? '▲ Configuración de votación' : '▼ Configuración de votación';
     }
     if (wrapper) wrapper.style.display = votingPanelOpen ? 'flex' : 'none';
+    if (combined) combined.style.display = 'block';
+
+    if (settingsLabel && settingsSelect) {
+      if (blockLabels === 'no-si' || blockLabels === 'custom') {
+        settingsLabel.textContent = 'Mayoría requerida:';
+        settingsLabel.style.color = 'var(--text-muted)';
+        if (settingsSelect.options[0]?.value !== 'simple') {
+          settingsSelect.innerHTML =
+            '<option value="simple">Mayoría simple (&gt; 50%)</option>' +
+            '<option value="absolute">Mayoría absoluta (≥ mitad + 1)</option>' +
+            '<option value="3/5">Mayoría cualificada 3/5 (≥ 60%)</option>' +
+            '<option value="2/3">Mayoría cualificada 2/3 (≥ 66.67%)</option>';
+        }
+        settingsSelect.disabled = false;
+      } else {
+        settingsLabel.textContent = isConcejalesMode ? 'Investidura alcaldía:' : 'Investidura en España:';
+        settingsLabel.style.color = 'var(--text)';
+        if (isConcejalesMode) {
+          if (settingsSelect.options.length !== 1 || settingsSelect.options[0].value !== 'first') {
+            settingsSelect.innerHTML = '<option value="first">Mayoría absoluta</option>';
+          }
+          settingsSelect.disabled = true;
+        } else {
+          if (settingsSelect.options.length !== 2 || settingsSelect.options[0].value !== 'first') {
+            const saved = settingsSelect.value;
+            settingsSelect.innerHTML =
+              '<option value="first">Primera vuelta - Mayoría absoluta</option>' +
+              '<option value="second">Segunda vuelta - Mayoría simple</option>';
+            if (saved === 'first' || saved === 'second') settingsSelect.value = saved;
+          }
+          settingsSelect.disabled = false;
+        }
+      }
+    }
   } else {
     if (btn) { btn.style.display = 'none'; btn.textContent = '▲ Configuración de votación'; }
     if (wrapper) wrapper.style.display = 'none';
+    if (combined) combined.style.display = 'none';
     votingPanelOpen = false;
   }
 }
