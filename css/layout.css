@@ -11,12 +11,23 @@
   align-items: start;
 }
 
-/* ── MAIN LEFT: tabla de votos + abstención + totales ─────── */
-.main-left {
+/* ── COLUMNA IZQUIERDA: votos + desglose ──────────────────── */
+.left-column {
   display: flex;
   flex-direction: column;
   gap: 14px;
   flex-shrink: 0;
+}
+
+.main-left {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── ASIDE: desglose bajo la tabla de votos ───────────────── */
+.breakdown-aside {
+  overflow-x: auto;
 }
 
 /* ── MAIN RIGHT: parámetros + resultados ──────────────────── */
@@ -42,10 +53,6 @@
   gap: 8px;
 }
 
-/* ── ASIDE: desglose de cocientes ─────────────────────────── */
-.breakdown-aside {
-  flex-shrink: 0;
-}
 
 /* ── CARDS ─────────────────────────────────────────────────── */
 .card {

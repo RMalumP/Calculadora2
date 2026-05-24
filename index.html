@@ -43,8 +43,11 @@
   <div id="calculator-tab" class="tab-content active">
   <div class="workspace">
 
-    <!-- ══ MAIN IZQUIERDA: tabla de votos + abstención + totales ══ -->
-    <main class="main-left">
+    <!-- ══ COLUMNA IZQUIERDA: tabla de votos + desglose ══ -->
+    <div class="left-column">
+
+      <!-- ── MAIN IZQUIERDA: tabla de votos + abstención + totales ── -->
+      <main class="main-left">
 
       <!-- Tabla de votos -->
       <div class="card">
@@ -152,7 +155,28 @@
         </div>
       </div>
 
-    </main><!-- /main-left -->
+      </main><!-- /main-left -->
+
+      <!-- ── ASIDE: desglose de cocientes ── -->
+      <aside class="breakdown-aside">
+        <div id="breakdown-section" style="display:none">
+          <button id="breakdown-toggle" onclick="toggleBreakdown()"
+            style="width:100%;background:none;color:var(--text-muted);border:none;padding:8px 12px;font-family:'Source Sans 3',sans-serif;font-size:0.8rem;font-weight:600;cursor:pointer;margin-bottom:8px;text-align:left;transition:color 0.15s">
+            ▼ Mostrar desglose de cocientes
+          </button>
+          <div class="card" id="breakdown-content" style="display:none">
+            <div class="card-header"><span class="dot"></span>Desglose de cocientes</div>
+            <div style="overflow-x:auto">
+              <table id="breakdown-table" style="font-size:0.75rem">
+                <thead id="breakdown-head"></thead>
+                <tbody id="breakdown-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </aside><!-- /breakdown-aside -->
+
+    </div><!-- /left-column -->
 
     <!-- ══ MAIN DERECHA: parámetros + resultados ══ -->
     <main class="main-right">
@@ -235,7 +259,7 @@
                 <th style="width:40%">Candidatura / Partido</th>
                 <th style="width:14%;text-align:right">Votos</th>
                 <th style="width:10%;text-align:right">% votos</th>
-                <th style="width:120px" id="seats-col-header">Escaños</th>
+                <th style="width:200px" id="seats-col-header">Escaños</th>
                 <th style="width:10%;text-align:right" id="seats-pct-header">% esc.</th>
                 <th style="width:8%;text-align:right">Dif. %</th>
               </tr>
@@ -246,25 +270,6 @@
       </article><!-- /results-area -->
 
     </main><!-- /main-right -->
-
-    <!-- ══ ASIDE DERECHA: desglose de cocientes ══ -->
-    <aside class="breakdown-aside">
-      <div id="breakdown-section" style="display:none">
-        <button id="breakdown-toggle" onclick="toggleBreakdown()"
-          style="width:100%;background:none;color:var(--text-muted);border:none;padding:8px 12px;font-family:'Source Sans 3',sans-serif;font-size:0.8rem;font-weight:600;cursor:pointer;margin-bottom:8px;text-align:left;transition:color 0.15s">
-          ▼ Mostrar desglose de cocientes
-        </button>
-        <div class="card" id="breakdown-content" style="display:none">
-          <div class="card-header"><span class="dot"></span>Desglose de cocientes</div>
-          <div style="overflow-x:auto">
-            <table id="breakdown-table" style="font-size:0.75rem">
-              <thead id="breakdown-head"></thead>
-              <tbody id="breakdown-body"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </aside><!-- /breakdown-aside -->
 
   </div><!-- /workspace -->
   </div><!-- /calculator-tab -->

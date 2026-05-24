@@ -171,13 +171,13 @@ tr.drag-over-below       { border-bottom: 2px solid var(--accent) !important; }
   /* workspace: mantiene fila — main-left izquierda, main-right derecha */
   .workspace { gap: 10px; }
 
-  /* Columna izquierda: tabla de votos scrollable */
-  .main-left {
+  /* Columna izquierda: votos + desglose */
+  .left-column {
     flex: 1 1 45%;
     min-width: 0;
-    gap: 10px;
     overflow-x: hidden;
   }
+  .main-left { gap: 10px; }
   .votes-table-scroll { overflow-x: auto; }
   .abstention-block   { overflow-x: auto; }
 
@@ -204,9 +204,6 @@ tr.drag-over-below       { border-bottom: 2px solid var(--accent) !important; }
   .results-area { width: 100%; }
   #results-card { overflow-x: auto; }
   #results-table { min-width: 380px; }
-
-  /* Desglose: al final de la fila (oculto por defecto, no ocupa espacio) */
-  .breakdown-aside { flex-shrink: 0; }
 
   /* Celdas más compactas */
   td, th { padding: 4px 6px; font-size: 0.8rem; }
