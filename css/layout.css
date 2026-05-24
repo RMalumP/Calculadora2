@@ -27,6 +27,7 @@
 
 /* ── ASIDE: desglose bajo la tabla de votos ───────────────── */
 .breakdown-aside {
+  min-width: 0;
   overflow-x: auto;
 }
 
