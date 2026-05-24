@@ -264,6 +264,7 @@ function resetCalculator() {
     document.getElementById(id).style.display = 'none';
   });
 
+  hideHemicycleToggle();
   getPartyRows().forEach(tr => tr.classList.remove('no-seats', 'barrier-blocked'));
 }
 

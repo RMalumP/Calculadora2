@@ -219,6 +219,9 @@ function displayResults(allocated, totalValid, totalSeats, formula, excludedBarr
   card.classList.add('visible');
   card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
+  showHemicycleToggle();
+  updateHemicycleIfVisible();
+
   copyResultsToPactometer(allocated, totalSeats);
 }
 
