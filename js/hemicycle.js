@@ -70,65 +70,101 @@ function drawHemicycle() {
   const container = document.getElementById('hemicycle-svg');
   if (!container) return;
 
-  let segmentsContainer = container.querySelector('#hemicycle-segments-container');
-  if (!segmentsContainer) {
-    segmentsContainer = document.createElement('div');
-    segmentsContainer.id = 'hemicycle-segments-container';
-    segmentsContainer.style.cssText = `
-      position: relative;
-      width: 100%;
-      max-width: 400px;
-      aspect-ratio: 2/1;
-      margin: 0 auto;
-    `;
-    container.appendChild(segmentsContainer);
-  }
-  segmentsContainer.innerHTML = '';
-
   const totalSeats = results.reduce((sum, r) => sum + r.seats, 0);
   if (totalSeats === 0) return;
 
-  const radius = 150;
-  const seatSize = 14;
-  const radiusCenter = radius - seatSize / 2;
+  container.innerHTML = '';
 
-  let seatIndex = 0;
+  const ul = document.createElement('ul');
+  ul.className = 'hemicycle-chart';
+  ul.style.cssText = `
+    position: relative;
+    width: 350px;
+    height: 175px;
+    margin: 0 auto;
+    padding: 0;
+    list-style: none;
+  `;
+
   results.forEach(result => {
-    for (let i = 0; i < result.seats; i++) {
-      const anglePercent = seatIndex / totalSeats;
-      const angleDeg = anglePercent * 180;
-      const angleRad = (angleDeg - 90) * Math.PI / 180;
+    const percentWidth = (result.seats / totalSeats) * 100;
+    const li = document.createElement('li');
+    li.style.cssText = `
+      position: absolute;
+      bottom: 0;
+      height: 100%;
+      width: ${percentWidth}%;
+      background-color: ${result.color};
+      border-right: 1px solid white;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding-bottom: 8px;
+      box-sizing: border-box;
+      cursor: default;
+      transition: opacity 0.2s;
+    `;
+    li.title = `${result.name}: ${result.seats} escaños`;
 
-      const x = radiusCenter * Math.cos(angleRad);
-      const y = radiusCenter * Math.sin(angleRad);
+    const span = document.createElement('span');
+    span.textContent = `${result.name}`;
+    span.style.cssText = `
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: white;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+      text-align: center;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      padding: 0 4px;
+    `;
 
-      const seat = document.createElement('div');
-      seat.style.cssText = `
-        position: absolute;
-        width: ${seatSize}px;
-        height: ${seatSize}px;
-        background-color: ${result.color};
-        border: 1px solid white;
-        border-radius: 2px;
-        left: 50%;
-        top: 50%;
-        transform: translate(calc(-50% + ${x}px), calc(-50% + ${y}px));
-        cursor: default;
-        transition: opacity 0.2s;
-      `;
-      seat.title = `${result.name}`;
+    li.appendChild(span);
 
-      seat.addEventListener('mouseenter', () => {
-        seat.style.opacity = '0.8';
-      });
-      seat.addEventListener('mouseleave', () => {
-        seat.style.opacity = '1';
-      });
+    li.addEventListener('mouseenter', () => {
+      li.style.opacity = '0.8';
+    });
+    li.addEventListener('mouseleave', () => {
+      li.style.opacity = '1';
+    });
 
-      segmentsContainer.appendChild(seat);
-      seatIndex++;
+    ul.appendChild(li);
+
+    let currentWidth = percentWidth;
+    for (let i = 0; i < results.indexOf(result); i++) {
+      currentWidth += (results[i].seats / totalSeats) * 100;
     }
+    li.style.left = `${currentWidth - percentWidth}%`;
   });
+
+  const before = document.createElement('div');
+  before.style.cssText = `
+    position: absolute;
+    width: 350px;
+    height: 175px;
+    top: 0;
+    border: 45px solid rgba(211, 211, 211, 0.2);
+    border-bottom: none;
+    border-top-left-radius: 175px;
+    border-top-right-radius: 175px;
+    box-sizing: border-box;
+    pointer-events: none;
+    z-index: 1;
+  `;
+
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = `
+    position: relative;
+    display: inline-block;
+    width: 100%;
+  `;
+
+  wrapper.appendChild(before);
+  wrapper.appendChild(ul);
+
+  container.appendChild(wrapper);
 }
 
 function getResults() {
