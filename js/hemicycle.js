@@ -70,37 +70,65 @@ function drawHemicycle() {
   const svg = document.getElementById('hemicycle-svg');
   svg.innerHTML = '';
 
-  const width = 500;
-  const height = 300;
+  const width = 385;
+  const height = 192.5;
   const centerX = width / 2;
-  const centerY = height * 0.75;
-  const radius = 120;
+  const centerY = height;
+  const radiusOuter = 192.5;
+  const radiusInner = 146.3;
+
+  svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
 
   const totalSeats = results.reduce((sum, r) => sum + r.seats, 0);
   if (totalSeats === 0) return;
 
-  let currentAngle = 0;
-  const anglePerSeat = Math.PI / totalSeats;
+  const mainGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  mainGroup.setAttribute('id', 'hemicycle-sectors');
+  mainGroup.setAttribute('transform', `translate(${centerX},${centerY})`);
+
+  let currentAngleDeg = 0;
+  const anglePerSeat = 180 / totalSeats;
 
   results.forEach(result => {
     for (let i = 0; i < result.seats; i++) {
-      const angle = Math.PI + currentAngle;
-      const x = centerX + radius * Math.cos(angle);
-      const y = centerY - radius * Math.sin(angle);
+      const startAngleDeg = currentAngleDeg;
+      const endAngleDeg = currentAngleDeg + anglePerSeat;
+      const startAngleRad = (startAngleDeg - 90) * Math.PI / 180;
+      const endAngleRad = (endAngleDeg - 90) * Math.PI / 180;
 
-      const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-      circle.setAttribute('cx', x);
-      circle.setAttribute('cy', y);
-      circle.setAttribute('r', '8');
-      circle.setAttribute('fill', result.color);
-      circle.setAttribute('stroke', 'white');
-      circle.setAttribute('stroke-width', '1');
-      circle.setAttribute('opacity', '0.9');
+      const x1Outer = radiusOuter * Math.cos(startAngleRad);
+      const y1Outer = radiusOuter * Math.sin(startAngleRad);
+      const x2Outer = radiusOuter * Math.cos(endAngleRad);
+      const y2Outer = radiusOuter * Math.sin(endAngleRad);
 
-      svg.appendChild(circle);
-      currentAngle += anglePerSeat;
+      const x1Inner = radiusInner * Math.cos(startAngleRad);
+      const y1Inner = radiusInner * Math.sin(startAngleRad);
+      const x2Inner = radiusInner * Math.cos(endAngleRad);
+      const y2Inner = radiusInner * Math.sin(endAngleRad);
+
+      const largeArc = anglePerSeat > 90 ? 1 : 0;
+
+      const pathData = `
+        M ${x1Outer},${y1Outer}
+        A ${radiusOuter},${radiusOuter} 0 ${largeArc},1 ${x2Outer},${y2Outer}
+        L ${x2Inner},${y2Inner}
+        A ${radiusInner},${radiusInner} 0 ${largeArc},0 ${x1Inner},${y1Inner}
+        Z
+      `;
+
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', pathData);
+      path.setAttribute('fill', result.color);
+      path.setAttribute('stroke', 'white');
+      path.setAttribute('stroke-width', '0.5');
+      path.setAttribute('opacity', '0.95');
+
+      mainGroup.appendChild(path);
+      currentAngleDeg += anglePerSeat;
     }
   });
+
+  svg.appendChild(mainGroup);
 }
 
 function getResults() {
