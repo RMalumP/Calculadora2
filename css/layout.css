@@ -26,8 +26,12 @@
 }
 
 /* ── ASIDE: desglose bajo la tabla de votos ───────────────── */
+/* width:0 excluye breakdown-aside del cálculo de ancho de    */
+/* left-column (lo fija main-left); min-width:100% lo         */
+/* estira al ancho resultante; overflow-x:auto da scroll.     */
 .breakdown-aside {
-  min-width: 0;
+  width: 0;
+  min-width: 100%;
   overflow-x: auto;
 }
 
