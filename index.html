@@ -269,6 +269,26 @@
         </div>
       </article><!-- /results-area -->
 
+      <!-- Hemiciclo Representación visual - Toggle -->
+      <div id="hemicycle-toggle-container" style="display:none;margin-bottom:8px">
+        <button id="hemicycle-toggle" onclick="toggleHemicycleVisual()"
+          style="width:100%;background:none;color:var(--text-muted);border:none;padding:8px 12px;font-family:'Source Sans 3',sans-serif;font-size:0.8rem;font-weight:600;cursor:pointer;text-align:left;transition:color 0.15s"
+          onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-muted)'">
+          ▼ Representación visual
+        </button>
+      </div>
+
+      <!-- Hemiciclo Ventana Flotante -->
+      <div id="hemicycle-window" class="hemicycle-window" style="display:none">
+        <div id="hemicycle-header" class="hemicycle-window-header">
+          <span>Representación visual</span>
+          <button onclick="closeHemicycleWindow()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem;padding:0;line-height:1">✕</button>
+        </div>
+        <div style="padding:20px 20px 24px">
+          <div id="hemicycle-chart"></div>
+        </div>
+      </div>
+
     </main><!-- /main-right -->
 
   </div><!-- /workspace -->
@@ -571,6 +591,7 @@
 <script src="js/rows.js"></script>
 <script src="js/totals.js"></script>
 <script src="js/calculator.js"></script>
+<script src="js/hemicycle.js"></script>
 <script src="js/pactometer.js"></script>
 <script src="js/ui.js"></script>
 

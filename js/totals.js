@@ -3,13 +3,11 @@
  * Cálculo de totales de votos, censo y participación.
  */
 
-// Valores reales (sin capear) para cálculos internos
 let _realTotalValid = 0;
 let _realTotalAll   = 0;
 
-// Cuando true, el censo sigue automáticamente al total de votos al perder el foco.
-// Se desactiva en cuanto el usuario escribe un valor manual en el campo de censo.
-// Se reactiva al borrar el campo de censo o al reiniciar la calculadora.
+// Se desactiva cuando el usuario escribe un valor manual en el campo de censo.
+// Se reactiva al borrarlo o al reiniciar la calculadora.
 let _censusAutoTracking = true;
 
 function updateTotals() {
@@ -28,15 +26,12 @@ function updateTotals() {
   const totalValid = sumParty + blank;
   const totalAll   = totalValid + nullv;
 
-  // Guardar valores reales para que los cálculos de censo/participación sean correctos
   _realTotalValid = totalValid;
   _realTotalAll   = totalAll;
 
-  // Mostrar valores reales temporalmente para que updateParticipation los lea bien
   document.getElementById('total-valid').textContent = totalValid.toLocaleString('es-ES');
   document.getElementById('total-all').textContent   = totalAll.toLocaleString('es-ES');
 
-  // Ajuste automático del censo cuando los votos cambian
   const censusInput = document.getElementById('census-total');
   const abstInput   = document.getElementById('abstention');
   const currentCensus = parseVoteValue(censusInput.value);
@@ -54,7 +49,6 @@ function updateTotals() {
 
   updateParticipation();
 
-  // Porcentaje por partido (sobre votos válidos)
   rows.forEach(tr => {
     const input = tr.dataset.isOtros
       ? tr.querySelector('input[data-otros-main]')
@@ -66,24 +60,22 @@ function updateTotals() {
   document.getElementById('blank-pct').innerHTML = totalValid > 0 ? pctBar(blank / totalValid * 100) : '—';
   document.getElementById('null-pct').innerHTML  = totalAll  > 0 ? pctBar(nullv / totalAll  * 100) : '—';
 
-  // Tope máximo en totals-strip: censo total (si está definido)
   const census = parseVoteValue(censusInput.value);
   const maxTotal = census > 0 ? census : Infinity;
   document.getElementById('total-valid').textContent = Math.min(totalValid, maxTotal).toLocaleString('es-ES');
   document.getElementById('total-all').textContent   = Math.min(totalAll,   maxTotal).toLocaleString('es-ES');
+
+  if (typeof updateOtrosDropdown === 'function') updateOtrosDropdown();
 }
 
 function updateCensus(source) {
-  const totalValid = _parseTotalValid();
   const nullv      = parseVoteValue(document.getElementById('null-votes').value);
-  const totalAll   = totalValid + nullv;
+  const totalAll   = _realTotalValid + nullv;
   const censusInput = document.getElementById('census-total');
   const abstInput   = document.getElementById('abstention');
 
   if (source === 'total') {
     const census = parseVoteValue(censusInput.value);
-    // Si el usuario escribió algo en censo, desactiva el seguimiento automático.
-    // Si lo dejó en blanco, lo reactiva.
     _censusAutoTracking = (census === 0);
     if (census >= totalAll) {
       abstInput.value = addThousandDots(census - totalAll);
@@ -100,11 +92,10 @@ function updateCensus(source) {
 }
 
 function updateParticipation() {
-  const totalValid = _parseTotalValid();
-  const nullv      = parseVoteValue(document.getElementById('null-votes').value);
-  const totalAll   = totalValid + nullv;
-  const census     = parseVoteValue(document.getElementById('census-total').value);
-  const abst       = parseVoteValue(document.getElementById('abstention').value);
+  const nullv   = parseVoteValue(document.getElementById('null-votes').value);
+  const totalAll = _realTotalValid + nullv;
+  const census   = parseVoteValue(document.getElementById('census-total').value);
+  const abst     = parseVoteValue(document.getElementById('abstention').value);
 
   if (census > 0 && totalAll > 0) {
     document.getElementById('total-participation').textContent = (totalAll / census * 100).toFixed(2) + '%';
@@ -122,16 +113,6 @@ function pctBar(pct) {
   return `${pct.toFixed(2)}%`;
 }
 
-/* Helper: devuelve el total real de votos válidos */
-function _parseTotalValid() {
-  return _realTotalValid;
-}
-
-/**
- * Sincroniza el censo al total de votos al perder el foco en un campo de votos.
- * Solo actúa si el auto-seguimiento está activo (el usuario no ha fijado el censo
- * manualmente). Suma la abstención explícita si la hay.
- */
 function syncCensusAfterVotes() {
   if (!_censusAutoTracking || _realTotalAll === 0) return;
   const censusInput = document.getElementById('census-total');

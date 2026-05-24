@@ -1,4 +1,12 @@
 /* ── OTROS PARTIDOS PANEL ───────────────────────────────────── */
+tr[data-is-otros="true"] td {
+  vertical-align: top;
+}
+
+tr[data-is-otros="true"] td input[type=color] {
+  margin-top: 3px;
+}
+
 .otros-label {
   display: inline-flex;
   align-items: center;
@@ -20,62 +28,68 @@
 }
 .otros-label.open .otros-arrow { transform: rotate(180deg); }
 
+.otros-name-cell { display: block; }
+
 .otros-dropdown {
   display: none;
   margin-top: 4px;
-  background: var(--row-alt);
-  border: 1px solid var(--border-light);
   border-radius: var(--radius);
   padding: 4px 0;
   width: 100%;
-}
-.otros-dropdown-title {
-  padding: 3px 10px 5px;
-  font-size: 0.66rem;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--text-muted);
-  font-weight: 600;
-  border-bottom: 1px solid var(--border-light);
-  margin-bottom: 3px;
 }
 .otros-dropdown-item {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 2px 6px 2px 10px;
+  padding: 3px 6px;
   font-size: 0.8rem;
   color: var(--text);
 }
 .otros-dropdown-item .otros-swatch {
-  width: 8px; height: 8px;
+  width: 10px; height: 10px;
   border-radius: 2px;
   flex-shrink: 0;
   border: 1px solid rgba(0,0,0,0.12);
 }
+.otros-dropdown-item .otros-siglas {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  font-weight: 600;
+}
 .otros-dropdown-item .otros-item-name {
-  flex: 1;
+  flex: 0 1 auto;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .otros-dropdown-item .otros-item-votes-input {
-  width: 72px;
+  width: 70px;
   border: 1px solid var(--border);
   border-radius: 2px;
   background: var(--surface);
   font-family: 'Source Sans 3', sans-serif;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   font-variant-numeric: tabular-nums;
   color: var(--text);
   text-align: right;
-  padding: 1px 4px;
+  padding: 2px 4px;
   flex-shrink: 0;
 }
 .otros-dropdown-item .otros-item-votes-input:focus {
   outline: none;
   border-color: var(--accent);
   background: #fffef9;
+}
+.otros-dropdown-item .otros-item-pct {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  min-width: 45px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 .otros-dropdown-item.manual .otros-item-name {
   font-style: italic;
@@ -94,14 +108,16 @@
   border: 1px solid var(--border);
   border-radius: 2px;
   cursor: pointer;
-  font-size: 10px;
-  padding: 1px 5px;
+  font-size: 9px;
+  padding: 0px 4px;
   color: var(--text-muted);
-  line-height: 1.5;
+  line-height: 1.4;
   flex-shrink: 0;
   transition: background var(--transition), color var(--transition);
 }
 .otros-eject-btn:hover { background: var(--accent-pale); color: var(--accent); border-color: var(--accent-light); }
+.otros-dropdown-item .otros-item-name.names-hidden-mode { color: #c07070 !important; }
+.otros-dropdown-item .otros-item-name.names-hidden-mode.names-has-value { color: #8b3131 !important; }
 
 /* ── ROW ACTION BUTTONS ─────────────────────────────────────── */
 .row-actions { display: flex; flex-direction: column; gap: 2px; align-items: center; }
@@ -152,6 +168,96 @@ tr.drag-over-below       { border-bottom: 2px solid var(--accent) !important; }
 /* ── RESPONSIVE ─────────────────────────────────────────────── */
 @media (min-width: 701px) {
   #votes-table { min-width: 430px; width: 100%; }
+}
+
+/* ── HEMICICLO – VENTANA FLOTANTE ───────────────────────────── */
+.hemicycle-window {
+  position: fixed;
+  top: 140px;
+  right: 40px;
+  width: 420px;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 28px rgba(0,0,0,.14);
+  z-index: 1000;
+}
+.hemicycle-window-header {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: var(--text);
+  cursor: grab;
+  user-select: none;
+  background: var(--accent-bg);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.hemicycle-window-header:active { cursor: grabbing; }
+
+/* ── HEMICICLO – DONUT SEMICÍRCULO ──────────────────────────── */
+.hemicycle-donut {
+  margin: 0 auto;
+  padding: 0;
+  list-style-type: none;
+  box-sizing: border-box;
+  position: relative;
+  width: 350px;
+  height: 175px;
+  overflow: hidden;
+}
+
+.hemicycle-donut *,
+.hemicycle-donut::before { box-sizing: border-box; }
+
+.hemicycle-donut::before {
+  content: '';
+  position: absolute;
+  width: 350px;
+  height: 175px;
+  border: 45px solid rgba(211,211,211,.35);
+  border-bottom: none;
+  border-top-left-radius:  175px;
+  border-top-right-radius: 175px;
+}
+
+.hemicycle-donut li {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 350px;
+  height: 175px;
+  border: 45px solid;
+  border-top: none;
+  border-bottom-left-radius:  175px;
+  border-bottom-right-radius: 175px;
+  transform-origin: 50% 0;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  animation-fill-mode: forwards;
+  animation-duration: 0.35s;
+  animation-timing-function: linear;
+}
+
+.hemicycle-donut li span {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: white;
+  text-shadow: 0 1px 3px rgba(0,0,0,.5);
+  backface-visibility: hidden;
+  animation: hemi-fade-in 0.35s linear forwards;
+  white-space: nowrap;
+}
+
+@keyframes hemi-fade-in {
+  0%, 85% { opacity: 0; }
+  100%     { opacity: 1; }
 }
 
 /* ── MOBILE (≤ 700 px) ──────────────────────────────────────── */
@@ -216,4 +322,12 @@ tr.drag-over-below       { border-bottom: 2px solid var(--accent) !important; }
   }
   .totals-strip .values     { gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
   .totals-strip .total-num  { font-size: 1rem; }
+
+  /* Hemiciclo en móvil */
+  .hemicycle-window {
+    width: calc(100vw - 32px);
+    top: 200px;
+    right: 16px;
+    left: 16px;
+  }
 }

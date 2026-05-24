@@ -194,21 +194,12 @@ input[type="color"] {
 input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
 input[type="color"]::-webkit-color-swatch { border: none; border-radius: 1px; }
 
-/* ── PERCENT CELL & BAR ─────────────────────────────────────── */
+/* ── PERCENT CELL ───────────────────────────────────────────── */
 .pct-cell {
   text-align: right;
   font-variant-numeric: tabular-nums;
   color: var(--text-muted);
   font-size: 0.85rem;
-}
-.pct-bar-wrap { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
-.pct-bar {
-  height: 5px;
-  background: var(--accent);
-  border-radius: 3px;
-  min-width: 2px;
-  opacity: 0.5;
-  transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* ── ADD ROW BUTTON ─────────────────────────────────────────── */
