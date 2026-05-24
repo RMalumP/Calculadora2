@@ -98,7 +98,7 @@ function drawHemicycle() {
     currentPercentage = endPercent;
   });
 
-  const conicGradient = `conic-gradient(from 0.5turn at 50% 100%, ${conicStops.join(', ')})`;
+  const conicGradient = `conic-gradient(from 180deg at 50% 100%, ${conicStops.join(', ')})`;
 
   const gradientLayer = document.createElement('div');
   gradientLayer.style.cssText = `
@@ -108,6 +108,10 @@ function drawHemicycle() {
     width: 100%;
     height: 100%;
     background: ${conicGradient};
+    mask: radial-gradient(circle at 50% 100%, white 0%, white 60%, transparent 60.1%);
+    -webkit-mask: radial-gradient(circle at 50% 100%, white 0%, white 60%, transparent 60.1%);
+    mask-mode: alpha;
+    -webkit-mask-mode: alpha;
   `;
 
   hemicycle.appendChild(gradientLayer);
