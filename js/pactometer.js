@@ -156,6 +156,8 @@ function updateHemicycle() {
     abstColorsEl.appendChild(box);
   });
 
+  _updateVotingPanelToggle();
+
   if (totalSeats === 0) {
     ['left-block','right-block'].forEach(id => { document.getElementById(id).style.width = '0%'; });
     ['left-label','right-label','majority-label'].forEach(id => { document.getElementById(id).textContent = ''; });
@@ -277,11 +279,7 @@ function _updateHemicycleSettings(leftSeats, rightSeats, totalSeats, absoluteMaj
   const isCongressMode  = currentSeatName === 'congresistas' || currentSeatName === 'escaños';
   const isConcejalesMode = currentSeatName === 'concejales';
 
-  const votingToggle  = document.getElementById('voting-panel-toggle');
-  const votingWrapper = document.getElementById('voting-panel-wrapper');
-
   if (blockLabels === 'no-si' || blockLabels === 'custom') {
-    if (votingToggle)  votingToggle.style.display  = 'block';
     votingSettings.style.display   = 'block';
     congressSettings.style.display = 'none';
   } else if (blockLabels === 'izq-der' && (isCongressMode || isConcejalesMode)) {
@@ -310,10 +308,6 @@ function _updateHemicycleSettings(leftSeats, rightSeats, totalSeats, absoluteMaj
   } else {
     votingSettings.style.display   = 'none';
     congressSettings.style.display = 'none';
-    if (votingToggle)  { votingToggle.style.display  = 'none'; }
-    if (votingWrapper) { votingWrapper.style.display = 'none'; votingPanelOpen = false;
-      if (votingToggle) { votingToggle.textContent = '▼ Configuración de votación'; }
-    }
   }
 
   if (leftSeats === 0 && rightSeats === 0) { votingResult.style.display = 'none'; return; }
@@ -472,6 +466,25 @@ function updateHemicycleLabels() {
 }
 
 /* ── PANEL CONFIGURACIÓN VOTACIÓN ──────────────────────────── */
+
+function _updateVotingPanelToggle() {
+  const blockLabels      = document.getElementById('block-labels')?.value || 'izq-der';
+  const isCongressMode   = currentSeatName === 'congresistas' || currentSeatName === 'escaños';
+  const isConcejalesMode = currentSeatName === 'concejales';
+  const show = blockLabels === 'no-si' || blockLabels === 'custom' ||
+               (blockLabels === 'izq-der' && (isCongressMode || isConcejalesMode));
+
+  const btn     = document.getElementById('voting-panel-toggle');
+  const wrapper = document.getElementById('voting-panel-wrapper');
+
+  if (show) {
+    if (btn) btn.style.display = 'block';
+  } else {
+    if (btn) { btn.style.display = 'none'; btn.textContent = '▼ Configuración de votación'; }
+    if (wrapper) wrapper.style.display = 'none';
+    votingPanelOpen = false;
+  }
+}
 
 function toggleVotingPanel() {
   votingPanelOpen = !votingPanelOpen;
