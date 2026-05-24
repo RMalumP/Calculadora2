@@ -116,6 +116,38 @@ function copyResultsToPactometer(allocated, totalSeats) {
   updateHemicycle();
 }
 
+/* ── VALIDACIÓN DE TOTAL FIJO ─────────────────────────────── */
+
+function validateAndUpdatePactTotal() {
+  const pactTotalInput = select('#pact-total-seats');
+  const pactRemainingInput = select('#pact-remaining-seats');
+
+  if (!pactTotalInput || !pactRemainingInput) return;
+
+  // Calcular el total actual de escaños en la tabla
+  const rows = selectAll('#pactometer-body tr');
+  let calculatedTotal = 0;
+
+  rows.forEach(tr => {
+    const seats = parseFloat(tr.querySelector('input[type=number]')?.value) || 0;
+    if (seats > 0) calculatedTotal += seats;
+  });
+
+  let enteredValue = parseFloat(pactTotalInput.value) || 0;
+
+  // Validar: el valor no puede ser menor que la suma de la tabla
+  if (enteredValue > 0 && enteredValue < calculatedTotal) {
+    pactTotalInput.value = calculatedTotal;
+    enteredValue = calculatedTotal;
+  }
+
+  // Actualizar escaños restantes
+  const remaining = enteredValue > calculatedTotal ? enteredValue - calculatedTotal : 0;
+  pactRemainingInput.value = remaining;
+
+  updateHemicycle();
+}
+
 /* ── HEMICICLO ─────────────────────────────────────────────── */
 
 function updateHemicycle() {
@@ -138,10 +170,17 @@ function updateHemicycle() {
     }
   });
 
-  const pactTotalInput = document.getElementById('pact-total-seats');
+  const pactTotalInput = select('#pact-total-seats');
   pactTotalInput.placeholder = `Automático: ${calculatedTotal}`;
   const fixedTotal = parseFloat(pactTotalInput.value) || 0;
   const totalSeats = fixedTotal > 0 ? Math.max(fixedTotal, calculatedTotal) : calculatedTotal;
+
+  // Actualizar escaños restantes
+  const pactRemainingInput = select('#pact-remaining-seats');
+  if (pactRemainingInput) {
+    const remaining = fixedTotal > calculatedTotal ? fixedTotal - calculatedTotal : 0;
+    pactRemainingInput.value = remaining;
+  }
 
   // Abstenciones
   const effectiveAbstentions = fixedTotal > calculatedTotal ? (fixedTotal - calculatedTotal + abstentionSeats) : abstentionSeats;
