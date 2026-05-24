@@ -7,6 +7,7 @@
 let rowCount = 0;
 let otrosAbsorbedParties = [];
 let _sinNombreCounter = 0;
+let _otrosDropdownUpdating = false;
 
 /* ── Votos: parseo y formato ── */
 
@@ -239,6 +240,7 @@ function toggleOtrosDropdown(btn) {
 }
 
 function updateOtrosDropdown() {
+  if (_otrosDropdownUpdating) return;
   const otrosRow = getOrCreateOtrosRow();
   if (!otrosRow) return;
   const dropdown = otrosRow.querySelector('.otros-dropdown');
@@ -325,23 +327,14 @@ function updateOtrosDropdown() {
     item.appendChild(nameInput);
 
     const votesInput = document.createElement('input');
-    votesInput.type = 'text';
+    votesInput.type = 'number';
     votesInput.setAttribute('inputmode', 'numeric');
     votesInput.className = 'otros-item-votes-input';
     votesInput.placeholder = '0';
-    const votesFmt = p.votes > 0 ? formatVotes(Math.min(p.votes, 9000000000)) : '';
-    votesInput.value = votesFmt;
-    votesInput.addEventListener('focus', function () {
-      const num = parseVoteValue(this.value);
-      this.value = num > 0 ? num : '';
-    });
-    votesInput.addEventListener('blur', function () {
-      const num = parseVoteValue(this.value);
-      this.value = num > 0 ? formatVotes(Math.min(num, 9000000000)) : '';
-    });
+    votesInput.min = '0';
+    votesInput.value = p.votes > 0 ? p.votes : '';
     votesInput.addEventListener('input', function () {
-      formatVotesInput(this);
-      otrosAbsorbedParties[idx].votes = parseVoteValue(this.value);
+      otrosAbsorbedParties[idx].votes = parseInt(this.value) || 0;
       recalcOtrosTotal();
     });
     item.appendChild(votesInput);
@@ -365,7 +358,9 @@ function recalcOtrosTotal() {
   if (!mainInput) return;
   const total = otrosAbsorbedParties.reduce((s, p) => s + (p.votes || 0), 0);
   mainInput.value = total > 0 ? formatVotes(Math.min(total, 9000000000)) : '';
+  _otrosDropdownUpdating = true;
   updateTotals();
+  _otrosDropdownUpdating = false;
 }
 
 function syncManualFromMain(newTotal) {
