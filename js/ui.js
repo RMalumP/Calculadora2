@@ -60,7 +60,13 @@ function toggleHideNames() {
 
   // Tabla de votos: solo cambiar color, el nombre sigue visible
   document.querySelectorAll('#votes-body .name-input').forEach(inp => {
-    inp.classList.toggle('names-hidden-mode', namesHidden);
+    if (namesHidden) {
+      inp.classList.add('names-hidden-mode');
+      if (inp.value.trim()) inp.classList.add('names-has-value');
+      else inp.classList.remove('names-has-value');
+    } else {
+      inp.classList.remove('names-hidden-mode', 'names-has-value');
+    }
   });
 
   // Tabla de escaños: ocultar/mostrar el nombre del partido

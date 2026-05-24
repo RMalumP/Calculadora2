@@ -163,6 +163,11 @@ function _buildRow(name, votes, color, isOtros) {
 
     const nameInput = tr.querySelector('.name-input');
     nameInput.addEventListener('input', function () {
+      if (typeof namesHidden !== 'undefined' && namesHidden) {
+        this.classList.add('names-hidden-mode');
+        if (this.value.trim()) this.classList.add('names-has-value');
+        else this.classList.remove('names-has-value');
+      }
       const otrosRow = getOrCreateOtrosRow();
       const prevOfOtros = otrosRow.previousElementSibling;
       if (tr === prevOfOtros && this.value.length > 0) {
@@ -179,7 +184,10 @@ function _buildRow(name, votes, color, isOtros) {
     }
     if (typeof namesHidden !== 'undefined' && namesHidden) {
       const nameInp = tr.querySelector('.name-input');
-      if (nameInp) nameInp.classList.add('names-hidden-mode');
+      if (nameInp) {
+        nameInp.classList.add('names-hidden-mode');
+        if (nameInp.value.trim()) nameInp.classList.add('names-has-value');
+      }
     }
   }
 
