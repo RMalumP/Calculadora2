@@ -59,7 +59,7 @@ tr[data-is-otros="true"] td input[type=color] {
   font-weight: 600;
 }
 .otros-dropdown-item .otros-siglas-input {
-  width: 45px;
+  width: 35px;
   max-length: 6;
   border: 1px solid var(--border);
   border-radius: 2px;
@@ -70,7 +70,7 @@ tr[data-is-otros="true"] td input[type=color] {
   text-transform: uppercase;
   color: var(--text);
   text-align: center;
-  padding: 2px 3px;
+  padding: 2px 2px;
   flex-shrink: 0;
   transition: border-color 0.12s, background 0.12s;
 }
@@ -99,7 +99,7 @@ tr[data-is-otros="true"] td input[type=color] {
   color: var(--text);
   padding: 2px 4px;
   transition: border-color 0.12s, background 0.12s;
-  width: 110px;
+  width: 80px;
   flex-shrink: 0;
   overflow-x: auto;
 }
@@ -124,7 +124,7 @@ tr[data-is-otros="true"] td input[type=color] {
   color: #8b3131 !important;
 }
 .otros-dropdown-item .otros-item-votes-input {
-  width: 70px;
+  width: 60px;
   border: 1px solid var(--border);
   border-radius: 2px;
   background: var(--surface);
