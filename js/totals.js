@@ -64,6 +64,8 @@ function updateTotals() {
   const maxTotal = census > 0 ? census : Infinity;
   document.getElementById('total-valid').textContent = Math.min(totalValid, maxTotal).toLocaleString('es-ES');
   document.getElementById('total-all').textContent   = Math.min(totalAll,   maxTotal).toLocaleString('es-ES');
+
+  if (typeof updateOtrosDropdown === 'function') updateOtrosDropdown();
 }
 
 function updateCensus(source) {

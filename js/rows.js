@@ -189,6 +189,7 @@ function _buildRow(name, votes, color, isOtros) {
       if (tr === prevOfOtros && !isNaN(numVal) && numVal > 0) {
         _insertBeforeOtros('', '', '', false);
       }
+      updateOtrosDropdown();
     });
 
     tr.querySelector('input[type=color]').addEventListener('input', updateSecondRoundIfActive);
