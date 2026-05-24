@@ -99,8 +99,9 @@ tr[data-is-otros="true"] td input[type=color] {
   color: var(--text);
   padding: 2px 4px;
   transition: border-color 0.12s, background 0.12s;
-  width: 35px;
+  width: 110px;
   flex-shrink: 0;
+  overflow-x: auto;
 }
 .otros-dropdown-item .otros-item-name-input:focus {
   outline: none;
