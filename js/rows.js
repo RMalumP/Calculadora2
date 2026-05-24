@@ -49,6 +49,16 @@ function onVoteBlur(input) {
   const num = parseVoteValue(input.value);
   input.type = 'text';
   input.value = num > 0 ? addThousandDots(Math.min(num, 9000000000)) : '';
+  // Re-sincronizar totales tras formatear/capear el valor
+  if (input.id === 'census-total') {
+    updateCensus('total');
+  } else if (input.id === 'abstention') {
+    updateCensus('abstention');
+  } else {
+    updateTotals();
+    syncCensusAfterVotes();
+    updateSecondRoundIfActive();
+  }
 }
 
 function _nextSinNombre() {

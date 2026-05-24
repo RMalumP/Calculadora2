@@ -244,6 +244,7 @@ function resetCalculator() {
     document.getElementById(id).value = '';
   });
 
+  _censusAutoTracking = true;
   updateTotals();
 
   ['results-card','last-seat-container','breakdown-section','second-round-container'].forEach(id => {
