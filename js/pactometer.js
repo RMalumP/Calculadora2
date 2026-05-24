@@ -45,6 +45,14 @@ function addPactometerRow(name = '', seats = '', color = '', block = '', siglas 
       if (this.value.trim()) this.classList.add('names-has-value');
       else this.classList.remove('names-has-value');
     }
+    const name = this.value.trim();
+    const match = name.match(/^Partido\s+([A-Za-z0-9]{1,6})$/);
+    if (match) {
+      const siglasInp = tr.querySelector('.pact-siglas-input');
+      if (siglasInp && !siglasInp.value.trim()) {
+        siglasInp.value = match[1].toUpperCase();
+      }
+    }
     const allRows = [...document.querySelectorAll('#pactometer-body tr')];
     if (tr === allRows[allRows.length - 1] && this.value.length > 0) addPactometerRow();
   });
