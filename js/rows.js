@@ -333,12 +333,10 @@ function updateOtrosDropdown() {
     votesInput.value = votesFmt;
     votesInput.addEventListener('focus', function () {
       const num = parseVoteValue(this.value);
-      this.type = 'number';
       this.value = num > 0 ? num : '';
     });
     votesInput.addEventListener('blur', function () {
       const num = parseVoteValue(this.value);
-      this.type = 'text';
       this.value = num > 0 ? formatVotes(Math.min(num, 9000000000)) : '';
     });
     votesInput.addEventListener('input', function () {

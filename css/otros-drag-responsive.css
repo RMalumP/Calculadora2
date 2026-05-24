@@ -46,11 +46,11 @@ tr[data-is-otros="true"] td input[type=color] {
   color: var(--text);
 }
 .otros-dropdown-item .otros-color-input {
-  width: 28px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   border: 1px solid var(--border);
   border-radius: 2px;
-  padding: 1px;
+  padding: 0;
   cursor: pointer;
   flex-shrink: 0;
   transition: border-color 0.12s;
