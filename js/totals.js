@@ -61,8 +61,9 @@ function updateTotals() {
   document.getElementById('blank-pct').innerHTML = totalValid > 0 ? pctBar(blank / totalValid * 100) : '—';
   document.getElementById('null-pct').innerHTML  = totalAll  > 0 ? pctBar(nullv / totalAll  * 100) : '—';
 
-  // Tope máximo en totals-strip: max votos por fila × nº filas de partido (incluye "otros")
-  const maxTotal = 9000000000 * rows.length;
+  // Tope máximo en totals-strip: censo total (si está definido)
+  const census = parseVoteValue(censusInput.value);
+  const maxTotal = census > 0 ? census : Infinity;
   document.getElementById('total-valid').textContent = Math.min(totalValid, maxTotal).toLocaleString('es-ES');
   document.getElementById('total-all').textContent   = Math.min(totalAll,   maxTotal).toLocaleString('es-ES');
 }
