@@ -56,6 +56,7 @@ function onVoteBlur(input) {
     updateCensus('abstention');
   } else {
     updateTotals();
+    syncCensusAfterVotes();
     updateSecondRoundIfActive();
   }
 }
