@@ -9,7 +9,7 @@ let currentRightLabel = 'DER';
 let pactSiglasVisible = false;
 let pactNamesHidden   = false;
 let pactLocked        = false;
-let votingPanelOpen   = false;
+let votingPanelOpen   = true;
 
 /* ── FILAS DEL PACTÓMETRO ──────────────────────────────────── */
 
@@ -478,9 +478,13 @@ function _updateVotingPanelToggle() {
   const wrapper = document.getElementById('voting-panel-wrapper');
 
   if (show) {
-    if (btn) btn.style.display = 'block';
+    if (btn) {
+      btn.style.display = 'block';
+      btn.textContent = votingPanelOpen ? '▲ Configuración de votación' : '▼ Configuración de votación';
+    }
+    if (wrapper) wrapper.style.display = votingPanelOpen ? 'flex' : 'none';
   } else {
-    if (btn) { btn.style.display = 'none'; btn.textContent = '▼ Configuración de votación'; }
+    if (btn) { btn.style.display = 'none'; btn.textContent = '▲ Configuración de votación'; }
     if (wrapper) wrapper.style.display = 'none';
     votingPanelOpen = false;
   }
