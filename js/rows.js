@@ -8,35 +8,14 @@ let rowCount = 0;
 let otrosAbsorbedParties = [];
 let _sinNombreCounter = 0;
 
-/* ── Utilidades ── */
-
-function toRoman(num) {
-  const vals = [
-    [1000,'M'],[900,'CM'],[500,'D'],[400,'CD'],
-    [100,'C'],[90,'XC'],[50,'L'],[40,'XL'],
-    [10,'X'],[9,'IX'],[5,'V'],[4,'IV'],[1,'I']
-  ];
-  let result = '';
-  for (const [v, s] of vals) {
-    while (num >= v) { result += s; num -= v; }
-  }
-  return result;
-}
-
 /* ── Votos: parseo y formato ── */
 
-function parseVoteValue(val) {
-  return parseInt(String(val || '').replace(/[^\d]/g, ''), 10) || 0;
-}
-
 function addThousandDots(n) {
-  return String(Math.floor(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return formatVotes(n);
 }
 
 function formatVoteInput(input) {
-  if (input.type === 'number') return;
-  const num = parseVoteValue(input.value);
-  input.value = num > 0 ? addThousandDots(Math.min(num, 9000000000)) : '';
+  formatVotesInput(input);
 }
 
 function onVoteFocus(input) {
@@ -48,8 +27,7 @@ function onVoteFocus(input) {
 function onVoteBlur(input) {
   const num = parseVoteValue(input.value);
   input.type = 'text';
-  input.value = num > 0 ? addThousandDots(Math.min(num, 9000000000)) : '';
-  // Re-sincronizar totales tras formatear/capear el valor
+  input.value = num > 0 ? formatVotes(Math.min(num, 9000000000)) : '';
   if (input.id === 'census-total') {
     updateCensus('total');
   } else if (input.id === 'abstention') {
@@ -66,11 +44,6 @@ function _nextSinNombre() {
   let n = _sinNombreCounter++, label = '';
   do { label = letters[n % 26] + label; n = Math.floor(n / 26) - 1; } while (n >= 0);
   return 'Partido ' + label;
-}
-
-function _extractSiglasFromName(name) {
-  const match = name.match(/^Partido\s+([A-Za-z0-9]+)$/);
-  return match ? match[1].toUpperCase() : '';
 }
 
 /* ── Gestión de la fila "Otros partidos" ── */
@@ -127,8 +100,8 @@ function _buildRow(name, votes, color, isOtros) {
     ? '<span style="width:18px;display:inline-block"></span>'
     : '<span class="drag-handle" title="Arrastrar para reordenar">⠿</span>';
 
-  const votesFmt = parseVoteValue(votes) > 0
-    ? addThousandDots(Math.min(parseVoteValue(votes), 9000000000)) : '';
+  const votesFmt = getVoteValue(votes) > 0
+    ? formatVotes(Math.min(getVoteValue(votes), 9000000000)) : '';
 
   tr.innerHTML = `
     <td style="white-space:nowrap;padding:2px 2px 2px 4px">${dragHandle}${deleteButton}</td>
@@ -147,7 +120,7 @@ function _buildRow(name, votes, color, isOtros) {
       if (corrected !== entered) {
         const clamped = Math.min(corrected, 9000000000);
         this.value = corrected > 0
-          ? (this.type === 'number' ? clamped : addThousandDots(clamped))
+          ? (this.type === 'number' ? clamped : formatVotes(clamped))
           : '';
       }
       updateOtrosDropdown();
@@ -356,7 +329,7 @@ function recalcOtrosTotal() {
   const mainInput = otrosRow.querySelector('input[data-otros-main]');
   if (!mainInput) return;
   const total = otrosAbsorbedParties.reduce((s, p) => s + (p.votes || 0), 0);
-  mainInput.value = total > 0 ? addThousandDots(Math.min(total, 9000000000)) : '';
+  mainInput.value = total > 0 ? formatVotes(Math.min(total, 9000000000)) : '';
   updateTotals();
 }
 
@@ -381,7 +354,7 @@ function moveRowToOtros(tr) {
   const votes  = parseVoteValue(tr.querySelector('.votes-input')?.value);
   const color  = tr.querySelector('input[type=color]')?.value || '#888888';
 
-  if (!siglas) siglas = _extractSiglasFromName(name);
+  if (!siglas) siglas = extractSiglasFromName(name);
 
   const already = otrosAbsorbedParties.find(p => !p.isManual && p.name === name);
   if (!already) otrosAbsorbedParties.push({ name, siglas, votes, color });

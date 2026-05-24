@@ -116,6 +116,38 @@ function copyResultsToPactometer(allocated, totalSeats) {
   updateHemicycle();
 }
 
+/* ── VALIDACIÓN DE TOTAL FIJO ─────────────────────────────── */
+
+function validateAndUpdatePactTotal() {
+  const pactTotalInput = select('#pact-total-seats');
+  const pactRemainingInput = select('#pact-remaining-seats');
+
+  if (!pactTotalInput || !pactRemainingInput) return;
+
+  // Calcular el total actual de escaños en la tabla
+  const rows = selectAll('#pactometer-body tr');
+  let calculatedTotal = 0;
+
+  rows.forEach(tr => {
+    const seats = parseFloat(tr.querySelector('input[type=number]')?.value) || 0;
+    if (seats > 0) calculatedTotal += seats;
+  });
+
+  let enteredValue = parseFloat(pactTotalInput.value) || 0;
+
+  // Validar: el valor no puede ser menor que la suma de la tabla
+  if (enteredValue > 0 && enteredValue < calculatedTotal) {
+    pactTotalInput.value = calculatedTotal;
+    enteredValue = calculatedTotal;
+  }
+
+  // Actualizar escaños restantes
+  const remaining = enteredValue > calculatedTotal ? enteredValue - calculatedTotal : 0;
+  pactRemainingInput.value = remaining;
+
+  updateHemicycle();
+}
+
 /* ── HEMICICLO ─────────────────────────────────────────────── */
 
 function updateHemicycle() {
@@ -138,10 +170,17 @@ function updateHemicycle() {
     }
   });
 
-  const pactTotalInput = document.getElementById('pact-total-seats');
+  const pactTotalInput = select('#pact-total-seats');
   pactTotalInput.placeholder = `Automático: ${calculatedTotal}`;
   const fixedTotal = parseFloat(pactTotalInput.value) || 0;
   const totalSeats = fixedTotal > 0 ? Math.max(fixedTotal, calculatedTotal) : calculatedTotal;
+
+  // Actualizar escaños restantes
+  const pactRemainingInput = select('#pact-remaining-seats');
+  if (pactRemainingInput) {
+    const remaining = fixedTotal > calculatedTotal ? fixedTotal - calculatedTotal : 0;
+    pactRemainingInput.value = remaining;
+  }
 
   // Abstenciones
   const effectiveAbstentions = fixedTotal > calculatedTotal ? (fixedTotal - calculatedTotal + abstentionSeats) : abstentionSeats;
@@ -354,20 +393,17 @@ function _showResult(el, text, bg) {
 
 function togglePactSiglasVisibility() {
   pactSiglasVisible = !pactSiglasVisible;
-  const btn = document.getElementById('pact-siglas-toggle-btn');
-  if (btn) btn.textContent = pactSiglasVisible ? 'Siglas ▲' : 'Siglas ▼';
+  updateText(select('#pact-siglas-toggle-btn'), pactSiglasVisible ? 'Siglas ▲' : 'Siglas ▼');
+  setDisplay(select('#pact-hide-names-btn'), pactSiglasVisible);
 
-  document.querySelectorAll('#pactometer-body .pact-siglas-input').forEach(inp => {
-    inp.style.display = pactSiglasVisible ? '' : 'none';
+  selectAll('#pactometer-body .pact-siglas-input').forEach(inp => {
+    setDisplay(inp, pactSiglasVisible);
   });
-
-  const hideNamesBtn = document.getElementById('pact-hide-names-btn');
-  if (hideNamesBtn) hideNamesBtn.style.display = pactSiglasVisible ? '' : 'none';
 
   if (!pactSiglasVisible && pactNamesHidden) {
     pactNamesHidden = false;
-    if (hideNamesBtn) hideNamesBtn.textContent = 'Ocultar nombre';
-    document.querySelectorAll('#pactometer-body .pact-name-input').forEach(inp => {
+    updateText(select('#pact-hide-names-btn'), 'Ocultar nombre');
+    selectAll('#pactometer-body .pact-name-input').forEach(inp => {
       inp.classList.remove('names-hidden-mode', 'names-has-value');
     });
   }
@@ -375,58 +411,54 @@ function togglePactSiglasVisibility() {
 
 function togglePactHideNames() {
   pactNamesHidden = !pactNamesHidden;
-  const btn = document.getElementById('pact-hide-names-btn');
-  if (btn) btn.textContent = pactNamesHidden ? 'Mostrar nombre' : 'Ocultar nombre';
-
-  document.querySelectorAll('#pactometer-body .pact-name-input').forEach(inp => {
-    if (pactNamesHidden) {
-      inp.classList.add('names-hidden-mode');
-      if (inp.value.trim()) inp.classList.add('names-has-value');
-      else inp.classList.remove('names-has-value');
-    } else {
-      inp.classList.remove('names-hidden-mode', 'names-has-value');
-    }
-  });
+  updateText(select('#pact-hide-names-btn'), pactNamesHidden ? 'Mostrar nombre' : 'Ocultar nombre');
+  updateNameElements('#pactometer-body .pact-name-input', pactNamesHidden);
 }
 
 /* ── ETIQUETAS DE BLOQUES ───────────────────────────────────── */
 
+function _updateBlockButtonLabels() {
+  selectAll('.block-btn-left').forEach(b => updateText(b, currentLeftLabel));
+  selectAll('.block-btn-right').forEach(b => updateText(b, currentRightLabel));
+}
+
 function updateBlockLabels() {
-  const selector   = document.getElementById('block-labels');
-  const customLeft = document.getElementById('custom-left-label');
-  const customRight = document.getElementById('custom-right-label');
+  const selector = select('#block-labels');
+  const customLeft = select('#custom-left-label');
+  const customRight = select('#custom-right-label');
 
   if (selector.value === 'izq-der') {
-    currentLeftLabel = 'IZQ'; currentRightLabel = 'DER';
-    customLeft.style.display = customRight.style.display = 'none';
+    currentLeftLabel = 'IZQ';
+    currentRightLabel = 'DER';
+    setDisplay(customLeft, false);
+    setDisplay(customRight, false);
   } else if (selector.value === 'no-si') {
-    currentLeftLabel = 'NO'; currentRightLabel = 'SÍ';
-    customLeft.style.display = customRight.style.display = 'none';
+    currentLeftLabel = 'NO';
+    currentRightLabel = 'SÍ';
+    setDisplay(customLeft, false);
+    setDisplay(customRight, false);
   } else {
-    customLeft.style.display = customRight.style.display = 'inline-block';
-    currentLeftLabel  = customLeft.value  || 'IZQ';
-    currentRightLabel = customRight.value || 'DER';
+    setDisplay(customLeft, true);
+    setDisplay(customRight, true);
+    currentLeftLabel = customLeft?.value || 'IZQ';
+    currentRightLabel = customRight?.value || 'DER';
   }
 
-  document.querySelectorAll('.block-btn-left').forEach(b => b.textContent  = currentLeftLabel);
-  document.querySelectorAll('.block-btn-right').forEach(b => b.textContent = currentRightLabel);
+  _updateBlockButtonLabels();
   updateHemicycleLabels();
   updateHemicycle();
 }
 
 function updateCustomBlockLabels() {
-  currentLeftLabel  = document.getElementById('custom-left-label').value  || 'IZQ';
-  currentRightLabel = document.getElementById('custom-right-label').value || 'DER';
-  document.querySelectorAll('.block-btn-left').forEach(b => b.textContent  = currentLeftLabel);
-  document.querySelectorAll('.block-btn-right').forEach(b => b.textContent = currentRightLabel);
+  currentLeftLabel = select('#custom-left-label')?.value || 'IZQ';
+  currentRightLabel = select('#custom-right-label')?.value || 'DER';
+  _updateBlockButtonLabels();
   updateHemicycleLabels();
 }
 
 function updateHemicycleLabels() {
-  const l = document.getElementById('hemicycle-left-label');
-  const r = document.getElementById('hemicycle-right-label');
-  if (l) l.textContent = currentLeftLabel;
-  if (r) r.textContent = currentRightLabel;
+  updateText(select('#hemicycle-left-label'), currentLeftLabel);
+  updateText(select('#hemicycle-right-label'), currentRightLabel);
 }
 
 /* ── PANEL CONFIGURACIÓN VOTACIÓN ──────────────────────────── */
@@ -494,21 +526,22 @@ function _updateVotingPanelToggle() {
 
 function toggleVotingPanel() {
   votingPanelOpen = !votingPanelOpen;
-  const wrapper = document.getElementById('voting-panel-wrapper');
-  const btn     = document.getElementById('voting-panel-toggle');
-  if (wrapper) wrapper.style.display = votingPanelOpen ? 'flex' : 'none';
-  if (btn) btn.textContent = votingPanelOpen ? '▲ Configuración de votación' : '▼ Configuración de votación';
+  const wrapper = select('#voting-panel-wrapper');
+  const btn = select('#voting-panel-toggle');
+  setDisplay(wrapper, votingPanelOpen);
+  if (btn) {
+    btn.textContent = votingPanelOpen ? '▲ Configuración de votación' : '▼ Configuración de votación';
+    wrapper.style.display = votingPanelOpen ? 'flex' : 'none';
+  }
 }
-
-/* ── BLOQUEO PACTÓMETRO ─────────────────────────────────────── */
 
 function togglePactLock() {
   pactLocked = !pactLocked;
-  const btn = document.getElementById('pact-lock-btn');
+  const btn = select('#pact-lock-btn');
   if (btn) {
-    btn.textContent = pactLocked ? '🔒 Bloqueado' : '🔓 Bloquear';
-    btn.style.color         = pactLocked ? '#e07070' : '';
-    btn.style.borderColor   = pactLocked ? 'rgba(139,31,31,0.5)' : '';
+    updateText(btn, pactLocked ? '🔒 Bloqueado' : '🔓 Bloquear');
+    btn.style.color = pactLocked ? '#e07070' : '';
+    btn.style.borderColor = pactLocked ? 'rgba(139,31,31,0.5)' : '';
   }
 }
 
@@ -557,7 +590,7 @@ function _buildHemicycleSegments(leftColors, leftSeats, rightColors, rightSeats,
 }
 
 function _getHemicycleTooltip() {
-  let tooltip = document.getElementById('hemicycle-tooltip-global');
+  let tooltip = select('#hemicycle-tooltip-global');
   if (!tooltip) {
     tooltip = document.createElement('div');
     tooltip.id = 'hemicycle-tooltip-global';

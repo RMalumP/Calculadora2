@@ -8,107 +8,67 @@
 let siglasVisible = false;
 let namesHidden = false;
 
+function _updateSiglasText(el) {
+  const s = el.dataset.siglas || '';
+  el.textContent = s + (namesHidden ? '' : '-');
+}
+
 function toggleSiglasVisibility() {
   siglasVisible = !siglasVisible;
-  const btn = document.getElementById('siglas-toggle-btn');
-  if (btn) btn.textContent = siglasVisible ? 'Siglas ▲' : 'Siglas ▼';
+  updateText(select('#siglas-toggle-btn'), siglasVisible ? 'Siglas ▲' : 'Siglas ▼');
 
-  document.querySelectorAll('#votes-body .siglas-input').forEach(inp => {
-    inp.classList.toggle('siglas-visible', siglasVisible);
+  selectAll('#votes-body .siglas-input').forEach(inp => {
+    toggleClass(inp, 'siglas-visible', siglasVisible);
   });
 
-  document.querySelectorAll('.result-siglas-prefix').forEach(el => {
-    el.style.display = siglasVisible ? '' : 'none';
-    if (siglasVisible) {
-      const s = el.dataset.siglas || '';
-      el.textContent = s + (namesHidden ? '' : '-');
-    }
+  selectAll('.result-siglas-prefix').forEach(el => {
+    setDisplay(el, siglasVisible);
+    if (siglasVisible) _updateSiglasText(el);
   });
 
-  document.querySelectorAll('.otros-siglas').forEach(span => {
-    span.style.display = siglasVisible ? '' : 'none';
+  setDisplay(select('#hide-names-btn'), siglasVisible);
+  updateNameElements('#second-round-body .sr-name-input', false);
+  selectAll('#second-round-body .sr-siglas-prefix').forEach(el => {
+    setDisplay(el, siglasVisible && el.dataset.siglas);
+    if (siglasVisible && el.dataset.siglas) _updateSiglasText(el);
   });
 
-  document.querySelectorAll('#second-round-body .sr-siglas-prefix').forEach(el => {
-    const s = el.dataset.siglas || '';
-    el.style.display = (siglasVisible && s) ? '' : 'none';
-    if (siglasVisible && s) el.textContent = s + (namesHidden ? '' : '-');
-  });
-  document.querySelectorAll('#second-round-body .sr-name-input').forEach(inp => {
-    inp.style.display = namesHidden ? 'none' : '';
-  });
-
-  const hideNamesBtn = document.getElementById('hide-names-btn');
-  if (hideNamesBtn) hideNamesBtn.style.display = siglasVisible ? '' : 'none';
+  selectAll('.otros-siglas').forEach(span => setDisplay(span, siglasVisible));
 
   if (!siglasVisible && namesHidden) {
     namesHidden = false;
+    const hideNamesBtn = select('#hide-names-btn');
     if (hideNamesBtn) hideNamesBtn.textContent = 'Ocultar nombre';
-    document.querySelectorAll('#votes-body .name-input').forEach(inp => {
-      inp.classList.remove('names-hidden-mode');
-    });
-    document.querySelectorAll('.result-party-name').forEach(el => {
-      el.style.display = '';
-    });
-    document.querySelectorAll('#second-round-body .sr-name-input').forEach(inp => {
-      inp.style.display = '';
-    });
+    updateNameElements('#votes-body .name-input', false);
+    updateNameSpans('.result-party-name', false);
+    selectAll('.result-party-name').forEach(el => setDisplay(el, true));
   }
 }
 
 function toggleHideNames() {
   namesHidden = !namesHidden;
-  const btn = document.getElementById('hide-names-btn');
-  if (btn) btn.textContent = namesHidden ? 'Mostrar nombre' : 'Ocultar nombre';
+  updateText(select('#hide-names-btn'), namesHidden ? 'Mostrar nombre' : 'Ocultar nombre');
 
-  document.querySelectorAll('#votes-body .name-input').forEach(inp => {
-    if (namesHidden) {
-      inp.classList.add('names-hidden-mode');
-      if (inp.value.trim()) inp.classList.add('names-has-value');
-      else inp.classList.remove('names-has-value');
-    } else {
-      inp.classList.remove('names-hidden-mode', 'names-has-value');
-    }
-  });
+  updateNameElements('#votes-body .name-input', namesHidden);
+  updateNameSpans('.otros-item-name', namesHidden);
 
-  document.querySelectorAll('.result-party-name').forEach(el => {
-    el.style.display = namesHidden ? 'none' : '';
-  });
+  selectAll('.result-party-name').forEach(el => setDisplay(el, !namesHidden));
+  selectAll('.result-siglas-prefix').forEach(el => _updateSiglasText(el));
 
-  document.querySelectorAll('.result-siglas-prefix').forEach(el => {
-    const s = el.dataset.siglas || '';
-    el.textContent = s + (namesHidden ? '' : '-');
-  });
-
-  document.querySelectorAll('.otros-item-name').forEach(span => {
-    if (namesHidden) {
-      span.classList.add('names-hidden-mode');
-      if (span.textContent.trim()) span.classList.add('names-has-value');
-      else span.classList.remove('names-has-value');
-    } else {
-      span.classList.remove('names-hidden-mode', 'names-has-value');
-    }
-  });
-
-  document.querySelectorAll('#second-round-body .sr-name-input').forEach(inp => {
-    inp.style.display = namesHidden ? 'none' : '';
-  });
-  document.querySelectorAll('#second-round-body .sr-siglas-prefix').forEach(el => {
-    const s = el.dataset.siglas || '';
-    el.textContent = s + (namesHidden ? '' : '-');
-  });
+  selectAll('#second-round-body .sr-name-input').forEach(inp => setDisplay(inp, !namesHidden));
+  selectAll('#second-round-body .sr-siglas-prefix').forEach(el => _updateSiglasText(el));
 }
 
 /* ── TABS ─────────────────────────────────────────────────── */
 
 function switchTab(tabName) {
-  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  selectAll('.tab-content').forEach(t => t.classList.remove('active'));
+  selectAll('.tab').forEach(b => b.classList.remove('active'));
   const tabMap = { calculator: 'calculator-tab', advanced: 'advanced-tab', pactometer: 'pactometer-tab', theory: 'theory-tab' };
-  const tabId  = tabMap[tabName];
+  const tabId = tabMap[tabName];
   if (!tabId) return;
-  document.getElementById(tabId).classList.add('active');
-  document.querySelector(`.tab[data-tab="${tabName}"]`)?.classList.add('active');
+  select(`#${tabId}`)?.classList.add('active');
+  select(`.tab[data-tab="${tabName}"]`)?.classList.add('active');
 }
 
 /* ── FÓRMULA ─────────────────────────────────────────────── */
@@ -117,7 +77,7 @@ let _seatsBeforeMajority = 350;
 let _inMajorityMode = false;
 
 function buildFormulaSelect() {
-  const sel = document.getElementById('formula-select');
+  const sel = select('#formula-select');
   [{ key: 'maj', label: 'Sistemas mayoritarios' }, { key: 'pr', label: 'Sistemas proporcionales' }].forEach(g => {
     const grp = document.createElement('optgroup');
     grp.label = g.label;
@@ -134,20 +94,20 @@ function buildFormulaSelect() {
 }
 
 function updateFormulaDesc() {
-  const val = document.getElementById('formula-select').value;
+  const val = select('#formula-select').value;
   const f = FORMULAS.find(x => x.id === val);
-  document.getElementById('formula-desc').textContent = f ? f.desc : '';
+  updateText(select('#formula-desc'), f ? f.desc : '');
 
-  const srContainer = document.getElementById('second-round-container');
+  const srContainer = select('#second-round-container');
   if (val === 'majority_round2') {
-    srContainer.style.display = 'block';
+    setDisplay(srContainer, true);
     prepareSecondRound();
   } else {
-    srContainer.style.display = 'none';
+    setDisplay(srContainer, false);
   }
 
   const nowMajority = val === 'majority' || val === 'majority_round2';
-  const seatsInput  = document.getElementById('seats');
+  const seatsInput = select('#seats');
   if (nowMajority && !_inMajorityMode) {
     _seatsBeforeMajority = parseInt(seatsInput.value) || 350;
     seatsInput.value = 1;
@@ -163,46 +123,49 @@ function updateFormulaDesc() {
 /* ── PARÁMETROS ──────────────────────────────────────────── */
 
 function toggleParamField(fieldName) {
-  const wrap  = document.getElementById(`${fieldName}-input-wrap`);
-  const label = document.getElementById(`${fieldName}-label-toggle`);
-  const collapsed = wrap.style.display === 'none';
-  wrap.style.display = collapsed ? 'block' : 'none';
-  label.textContent = label.textContent.replace(collapsed ? '▼' : '▲', collapsed ? '▲' : '▼');
+  const wrap = select(`#${fieldName}-input-wrap`);
+  const label = select(`#${fieldName}-label-toggle`);
+  const collapsed = wrap?.style.display === 'none';
+  setDisplay(wrap, collapsed);
+  if (label) {
+    label.textContent = label.textContent.replace(collapsed ? '▼' : '▲', collapsed ? '▲' : '▼');
+  }
 }
 
 function getBonusMode() {
-  return document.getElementById('bonus-mode-value')?.value || 'included';
+  return select('#bonus-mode-value')?.value || 'included';
 }
 
 function setBonusMode(mode) {
-  document.getElementById('bonus-mode-value').value = mode;
-  document.getElementById('bonus-btn-included').classList.toggle('bonus-active', mode === 'included');
-  document.getElementById('bonus-btn-extra').classList.toggle('bonus-active',    mode !== 'included');
-  document.getElementById('bonus-desc-included').style.display = mode === 'included' ? 'block' : 'none';
-  document.getElementById('bonus-desc-extra').style.display    = mode === 'included' ? 'none' : 'block';
+  const bonusModeValue = select('#bonus-mode-value');
+  if (bonusModeValue) bonusModeValue.value = mode;
+  toggleClass(select('#bonus-btn-included'), 'bonus-active', mode === 'included');
+  toggleClass(select('#bonus-btn-extra'), 'bonus-active', mode !== 'included');
+  setDisplay(select('#bonus-desc-included'), mode === 'included');
+  setDisplay(select('#bonus-desc-extra'), mode !== 'included');
   calculate();
 }
 
 /* ── NOMBRES DE ESCAÑOS ──────────────────────────────────── */
 
 function updateSeatNames() {
-  const val = document.getElementById('seat-rename').value;
+  const val = select('#seat-rename').value;
   currentSeatName = val;
   const cap = val.charAt(0).toUpperCase() + val.slice(1);
   const singular = SINGULAR_MAP[val] ?? val.slice(0, -1);
 
-  const seatsLabel = document.getElementById('seats-label-toggle');
-  seatsLabel.textContent = `${seatsLabel.textContent.startsWith('▲') ? '▲ ' : '▼ '}Número de ${val}`;
+  const seatsLabel = select('#seats-label-toggle');
+  if (seatsLabel) {
+    seatsLabel.textContent = `${seatsLabel.textContent.startsWith('▲') ? '▲ ' : '▼ '}Número de ${val}`;
+  }
 
-  document.getElementById('results-title').textContent      = `Distribución de ${val}`;
-  document.getElementById('seats-col-header').textContent   = singular.charAt(0).toUpperCase() + singular.slice(1);
-  document.getElementById('seats-pct-header').textContent   = `% ${val.slice(0, 3)}.`;
+  updateText(select('#results-title'), `Distribución de ${val}`);
+  updateText(select('#seats-col-header'), singular.charAt(0).toUpperCase() + singular.slice(1));
+  updateText(select('#seats-pct-header'), `% ${val.slice(0, 3)}.`);
+  updateText(select('#last-seat-word-toggle'), singular);
+  updateText(select('#pact-seats-header'), cap);
 
-  const lastSeatWord = document.getElementById('last-seat-word-toggle');
-  if (lastSeatWord) lastSeatWord.textContent = singular;
-
-  document.querySelectorAll('.seat-name-ref').forEach(el => { el.textContent = val; });
-  document.getElementById('pact-seats-header').textContent = cap;
+  selectAll('.seat-name-ref').forEach(el => updateText(el, val));
 
   if (typeof updateHemicycle === 'function') updateHemicycle();
 }
@@ -210,17 +173,17 @@ function updateSeatNames() {
 /* ── DESGLOSE DE COCIENTES ───────────────────────────────── */
 
 function toggleBreakdown() {
-  const content = document.getElementById('breakdown-content');
-  const button  = document.getElementById('breakdown-toggle');
-  const open    = content.style.display === 'none';
+  const content = select('#breakdown-content');
+  const button = select('#breakdown-toggle');
+  const open = content?.style.display === 'none';
 
-  content.style.display = open ? 'block' : 'none';
-  button.innerHTML = open ? '▲ Ocultar desglose de cocientes' : '▼ Mostrar desglose de cocientes';
+  setDisplay(content, open);
+  if (button) button.innerHTML = open ? '▲ Ocultar desglose de cocientes' : '▼ Mostrar desglose de cocientes';
   document.body.classList.toggle('breakdown-visible', open);
 
   if (open) {
     setTimeout(() => {
-      const col = document.querySelector('.breakdown-aside');
+      const col = select('.breakdown-aside');
       if (col) document.documentElement.style.setProperty('--breakdown-width', `${col.offsetWidth}px`);
     }, 10);
   }
@@ -229,14 +192,16 @@ function toggleBreakdown() {
 /* ── ÚLTIMO ESCAÑO ───────────────────────────────────────── */
 
 function toggleLastSeat() {
-  const inner = document.getElementById('last-seat-info');
-  const btn   = document.getElementById('last-seat-toggle');
-  const open  = inner.style.display === 'block';
+  const inner = select('#last-seat-info');
+  const btn = select('#last-seat-toggle');
+  const open = inner?.style.display === 'block';
   const singular = SINGULAR_MAP[currentSeatName] ?? currentSeatName.slice(0, -1);
-  inner.style.display = open ? 'none' : 'block';
-  btn.innerHTML = open
-    ? `▼ Mostrar análisis del último <span id="last-seat-word-toggle">${singular}</span>`
-    : `▲ Ocultar análisis del último <span id="last-seat-word-toggle">${singular}</span>`;
+  setDisplay(inner, !open);
+  if (btn) {
+    btn.innerHTML = open
+      ? `▼ Mostrar análisis del último <span id="last-seat-word-toggle">${singular}</span>`
+      : `▲ Ocultar análisis del último <span id="last-seat-word-toggle">${singular}</span>`;
+  }
 }
 
 /* ── REINICIO ────────────────────────────────────────────── */
@@ -244,7 +209,8 @@ function toggleLastSeat() {
 function resetCalculator() {
   if (!confirm('¿Reiniciar la calculadora? Se perderán todos los datos introducidos.')) return;
 
-  document.getElementById('votes-body').innerHTML = '';
+  const votesBody = select('#votes-body');
+  if (votesBody) votesBody.innerHTML = '';
   rowCount = 0;
   for (let i = 0; i < 5; i++) addRow();
   addRow('Otros partidos', '', '#474747', true);
@@ -254,14 +220,15 @@ function resetCalculator() {
   updateOtrosDropdown();
 
   ['blank-votes','null-votes','census-total','abstention'].forEach(id => {
-    document.getElementById(id).value = '';
+    const el = select(`#${id}`);
+    if (el) el.value = '';
   });
 
   _censusAutoTracking = true;
   updateTotals();
 
   ['results-card','last-seat-container','breakdown-section','second-round-container'].forEach(id => {
-    document.getElementById(id).style.display = 'none';
+    setDisplay(select(`#${id}`), false);
   });
 
   hideHemicycleToggle();
@@ -270,19 +237,20 @@ function resetCalculator() {
 
 function resetPactometer() {
   if (!confirm('¿Reiniciar el pactómetro? Se perderán todos los datos.')) return;
-  document.getElementById('pactometer-body').innerHTML = '';
+  const pactometerBody = select('#pactometer-body');
+  if (pactometerBody) pactometerBody.innerHTML = '';
   pactRowCount = 0;
   for (let i = 0; i < 5; i++) addPactometerRow();
   updateHemicycle();
 }
 
 function clearPactometerSeats() {
-  document.querySelectorAll('#pactometer-body input[type=number]').forEach(inp => { inp.value = ''; });
+  selectAll('#pactometer-body input[type=number]').forEach(inp => { inp.value = ''; });
   updateHemicycle();
 }
 
 function clearPactometerBlocks() {
-  document.querySelectorAll('#pactometer-body tr').forEach(tr => {
+  selectAll('#pactometer-body tr').forEach(tr => {
     tr.dataset.block = '';
     tr.querySelectorAll('td:last-child button').forEach(b => {
       b.style.background = '';
@@ -295,23 +263,26 @@ function clearPactometerBlocks() {
 /* ── TEORÍA ──────────────────────────────────────────────── */
 
 function showTheorySystem(systemId) {
-  document.querySelectorAll('.theory-content-section').forEach(s => {
-    s.classList.remove('active');
-    s.style.display = 'none';
+  selectAll('.theory-content-section').forEach(s => {
+    toggleClass(s, 'active', false);
+    setDisplay(s, false);
   });
-  document.querySelectorAll('.theory-system-btn').forEach(b => {
-    b.classList.remove('active');
+  selectAll('.theory-system-btn').forEach(b => {
+    toggleClass(b, 'active', false);
     b.style.background = 'white';
     b.style.color = 'var(--text)';
     b.style.border = '1px solid var(--border)';
   });
 
-  const contentEl = document.getElementById(`theory-${systemId}`);
-  if (contentEl) { contentEl.classList.add('active'); contentEl.style.display = 'block'; }
+  const contentEl = select(`#theory-${systemId}`);
+  if (contentEl) {
+    toggleClass(contentEl, 'active', true);
+    setDisplay(contentEl, true);
+  }
 
-  document.querySelectorAll('.theory-system-btn').forEach(b => {
+  selectAll('.theory-system-btn').forEach(b => {
     if (b.dataset.system === systemId) {
-      b.classList.add('active');
+      toggleClass(b, 'active', true);
       b.style.background = 'var(--accent)';
       b.style.color = 'white';
       b.style.border = 'none';
@@ -322,7 +293,7 @@ function showTheorySystem(systemId) {
 /* ── GUARDAR HTML ────────────────────────────────────────── */
 
 function saveHTML() {
-  document.querySelectorAll('input, select').forEach(el => {
+  selectAll('input, select').forEach(el => {
     if (el.type === 'checkbox' || el.type === 'radio') {
       el.checked ? el.setAttribute('checked', '') : el.removeAttribute('checked');
     } else if (el.tagName === 'SELECT') {
@@ -348,13 +319,13 @@ function saveHTML() {
   let dragSrc = null;
 
   function getRows() {
-    return [...document.querySelectorAll('#votes-body tr')].filter(
+    return selectAll('#votes-body tr').filter(
       tr => !tr.dataset.isOtros && tr.style.display !== 'none'
     );
   }
 
   function clearDragStyles() {
-    document.querySelectorAll('#votes-body tr').forEach(tr =>
+    selectAll('#votes-body tr').forEach(tr =>
       tr.classList.remove('dragging', 'drag-over-above', 'drag-over-below')
     );
   }
@@ -384,13 +355,13 @@ function saveHTML() {
         document.removeEventListener('mouseup', onMouseUp);
         if (!dragSrc) { clearDragStyles(); return; }
 
-        const tbody = document.getElementById('votes-body');
-        const above = tbody.querySelector('.drag-over-above');
-        const below = tbody.querySelector('.drag-over-below');
+        const tbody = select('#votes-body');
+        const above = tbody?.querySelector('.drag-over-above');
+        const below = tbody?.querySelector('.drag-over-below');
 
-        if (above && above !== dragSrc) {
+        if (above && above !== dragSrc && tbody) {
           tbody.insertBefore(dragSrc, above);
-        } else if (below && below !== dragSrc) {
+        } else if (below && below !== dragSrc && tbody) {
           const next = below.nextElementSibling;
           if (next) tbody.insertBefore(dragSrc, next);
         }
@@ -416,7 +387,7 @@ function saveHTML() {
   });
 
   document.addEventListener('DOMContentLoaded', () => {
-    const tbody = document.getElementById('votes-body');
+    const tbody = select('#votes-body');
     if (tbody) {
       observer.observe(tbody, { childList: true });
       tbody.querySelectorAll('tr:not([data-is-otros]) .drag-handle').forEach(h => attachHandle(h, h.closest('tr')));
