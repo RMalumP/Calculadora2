@@ -166,67 +166,58 @@ tr.drag-over-below       { border-bottom: 2px solid var(--accent) !important; }
   header span { font-size: 0.78rem; }
   header #seat-rename { margin-left: 0; margin-top: 4px; }
 
-  .main { padding: 10px 10px 40px; }
+  .main { padding: 10px 8px 40px; }
 
-  /* Stack workspace vertically */
-  .workspace {
-    flex-direction: column;
-    gap: 14px;
-  }
+  /* workspace: mantiene fila — main-left izquierda, main-right derecha */
+  .workspace { gap: 10px; }
 
-  /* 1. Tabla de votos (full width) */
+  /* Columna izquierda: tabla de votos scrollable */
   .main-left {
-    width: 100%;
+    flex: 1 1 45%;
+    min-width: 0;
     gap: 10px;
+    overflow-x: hidden;
   }
+  .votes-table-scroll { overflow-x: auto; }
+  .abstention-block   { overflow-x: auto; }
 
-  /* 2. Parámetros + resultados (full width, stacked column) */
+  /* Columna derecha: params arriba, resultados abajo */
   .main-right {
-    width: 100%;
+    flex: 1 1 55%;
     flex-direction: column;
-    min-width: unset;
+    min-width: 0;
     gap: 10px;
   }
 
-  /* Param-card se expande a ancho completo en móvil */
-  .param-area {
-    width: 100%;
-  }
-  .param-card {
-    width: 100%;
-  }
+  /* param-card ocupa todo el ancho de la columna derecha */
+  .param-area { width: 100%; }
   .param-body {
-    padding: 14px;
+    padding: 12px;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 14px;
+    gap: 10px;
   }
-  /* Fórmula y botón ocupan columna completa */
+  /* Fórmula y botón Calcular: ancho completo */
   .formula-field,
-  .calc-btn {
-    grid-column: 1 / -1;
-  }
+  .calc-btn { grid-column: 1 / -1; }
 
-  /* Results full width */
-  .results-area {
-    width: 100%;
-  }
+  /* results-area: ancho completo, tabla con scroll si es necesario */
+  .results-area { width: 100%; }
+  #results-card { overflow-x: auto; }
+  #results-table { min-width: 380px; }
 
-  /* 3. Desglose (full width, al final) */
-  .breakdown-aside {
-    width: 100%;
-  }
+  /* Desglose: al final de la fila (oculto por defecto, no ocupa espacio) */
+  .breakdown-aside { flex-shrink: 0; }
 
-  /* Ajustes de tablas para pantalla pequeña */
-  td, th { padding: 5px 7px; }
-  .votes-table-scroll { overflow-x: auto; }
-  #votes-table { min-width: 390px; }
+  /* Celdas más compactas */
+  td, th { padding: 4px 6px; font-size: 0.8rem; }
 
-  /* Totals strip más compacto */
+  /* Totals strip compacto */
   .totals-strip {
     flex-wrap: wrap;
     gap: 6px;
-    padding: 10px 14px;
+    padding: 10px 12px;
   }
-  .totals-strip .values { gap: 16px; flex-wrap: wrap; justify-content: flex-end; }
+  .totals-strip .values     { gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
+  .totals-strip .total-num  { font-size: 1rem; }
 }
