@@ -248,13 +248,6 @@
           </button>
           <div class="last-seat-info" id="last-seat-info" style="display:none"></div>
         </div>
-        <div id="hemicycle-container-toggle" style="display:none;margin-bottom:8px">
-          <button id="hemicycle-toggle" onclick="toggleHemicycleVisual()"
-            style="width:100%;background:none;color:var(--text-muted);border:none;padding:8px 12px;font-family:'Source Sans 3',sans-serif;font-size:0.8rem;font-weight:600;cursor:pointer;text-align:left;transition:color 0.15s"
-            onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-muted)'">
-            ▼ Representación visual
-          </button>
-        </div>
         <div class="card" id="results-card">
           <div class="card-header">
             <span class="dot"></span><span id="results-title">Distribución de escaños</span>
@@ -276,15 +269,16 @@
         </div>
       </article><!-- /results-area -->
 
-      <!-- Hemiciclo movible (ventana flotante) -->
-      <div id="hemicycle-window" class="hemicycle-window" style="display:none">
-        <div class="hemicycle-window-header" id="hemicycle-header">
-          <span>Hemiciclo - Representación visual</span>
-          <button onclick="closeHemicycleWindow()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem;padding:0;width:24px;height:24px;display:flex;align-items:center;justify-content:center">✕</button>
-        </div>
-        <div class="hemicycle-window-content" id="hemicycle-svg">
-          <!-- El hemiciclo se dibujará aquí con JavaScript -->
-        </div>
+      <!-- Hemiciclo Representación visual -->
+      <div id="hemicycle-toggle-container" style="display:none;margin-bottom:8px">
+        <button id="hemicycle-toggle" onclick="toggleHemicycleVisual()"
+          style="width:100%;background:none;color:var(--text-muted);border:none;padding:8px 12px;font-family:'Source Sans 3',sans-serif;font-size:0.8rem;font-weight:600;cursor:pointer;text-align:left;transition:color 0.15s"
+          onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-muted)'">
+          ▼ Representación visual
+        </button>
+      </div>
+      <div id="hemicycle-container" style="display:none;margin-bottom:20px;padding:20px;background:var(--accent-bg);border:1px solid var(--border);border-radius:var(--radius)">
+        <div id="hemicycle-chart" style="width:100%;max-width:400px;margin:0 auto"></div>
       </div>
 
     </main><!-- /main-right -->
