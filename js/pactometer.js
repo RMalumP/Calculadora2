@@ -276,7 +276,7 @@ function _updateHemicycleSettings(leftSeats, rightSeats, totalSeats, absoluteMaj
   const isCongressMode  = currentSeatName === 'congresistas' || currentSeatName === 'escaños';
   const isConcejalesMode = currentSeatName === 'concejales';
 
-  if (blockLabels === 'no-si') {
+  if (blockLabels === 'no-si' || blockLabels === 'custom') {
     votingSettings.style.display   = 'block';
     congressSettings.style.display = 'none';
   } else if (blockLabels === 'izq-der' && (isCongressMode || isConcejalesMode)) {
@@ -312,7 +312,7 @@ function _updateHemicycleSettings(leftSeats, rightSeats, totalSeats, absoluteMaj
   const threesFifths    = Math.floor(totalSeats * 3 / 5) + 1;
   const twoThirds       = Math.floor(totalSeats * 2 / 3) + 1;
 
-  if (blockLabels === 'no-si') {
+  if (blockLabels === 'no-si' || blockLabels === 'custom') {
     const requiredMajority = document.getElementById('required-majority')?.value || 'simple';
     _applyVotingResult(votingResult, leftSeats, rightSeats, requiredMajority, absoluteMajority, threesFifths, twoThirds, null, null, true);
   } else if (blockLabels === 'izq-der' && (isCongressMode || isConcejalesMode)) {
