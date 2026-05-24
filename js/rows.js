@@ -7,6 +7,7 @@
 let rowCount = 0;
 let otrosAbsorbedParties = [];
 let _sinNombreCounter = 0;
+let _otrosDropdownUpdating = false;
 
 /* ── Votos: parseo y formato ── */
 
@@ -239,6 +240,7 @@ function toggleOtrosDropdown(btn) {
 }
 
 function updateOtrosDropdown() {
+  if (_otrosDropdownUpdating) return;
   const otrosRow = getOrCreateOtrosRow();
   if (!otrosRow) return;
   const dropdown = otrosRow.querySelector('.otros-dropdown');
@@ -278,32 +280,58 @@ function updateOtrosDropdown() {
       item.appendChild(ejectBtn);
     }
 
-    const swatch = document.createElement('span');
-    swatch.className = 'otros-swatch';
-    swatch.style.background = p.color || '#888888';
-    item.appendChild(swatch);
+    const colorInput = document.createElement('input');
+    colorInput.type = 'color';
+    colorInput.className = 'otros-color-input';
+    colorInput.value = p.color || '#888888';
+    colorInput.title = 'Color del partido';
+    colorInput.addEventListener('input', function () {
+      otrosAbsorbedParties[idx].color = this.value;
+    });
+    item.appendChild(colorInput);
 
-    const siglasSpan = document.createElement('span');
-    siglasSpan.className = 'otros-siglas';
-    siglasSpan.dataset.siglas = p.siglas || '';
-    siglasSpan.textContent = p.siglas || '';
-    siglasSpan.style.display = (typeof siglasVisible !== 'undefined' && siglasVisible) ? '' : 'none';
-    item.appendChild(siglasSpan);
+    const siglasInput = document.createElement('input');
+    siglasInput.type = 'text';
+    siglasInput.className = 'otros-siglas-input';
+    siglasInput.maxLength = '6';
+    siglasInput.placeholder = 'Sig.';
+    siglasInput.value = p.siglas || '';
+    siglasInput.style.display = (typeof siglasVisible !== 'undefined' && siglasVisible) ? '' : 'none';
+    siglasInput.addEventListener('input', function () {
+      otrosAbsorbedParties[idx].siglas = this.value.toUpperCase();
+    });
+    siglasInput.addEventListener('change', function () {
+      this.value = this.value.toUpperCase();
+      otrosAbsorbedParties[idx].siglas = this.value;
+    });
+    item.appendChild(siglasInput);
 
-    const nameSpan = document.createElement('span');
-    nameSpan.className = 'otros-item-name';
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.className = 'otros-item-name-input';
+    nameInput.placeholder = 'Nombre del partido';
+    nameInput.value = p.isManual ? 'Otros (manual)' : p.name;
+    nameInput.readOnly = p.isManual;
     if (typeof namesHidden !== 'undefined' && namesHidden) {
-      nameSpan.classList.add('names-hidden-mode');
-      const name = p.isManual ? 'Otros (manual)' : p.name;
-      if (name.trim()) nameSpan.classList.add('names-has-value');
+      nameInput.classList.add('names-hidden-mode');
+      if (nameInput.value.trim()) nameInput.classList.add('names-has-value');
     }
-    nameSpan.textContent = p.isManual ? 'Otros (manual)' : p.name;
-    item.appendChild(nameSpan);
+    nameInput.addEventListener('input', function () {
+      if (!p.isManual) {
+        otrosAbsorbedParties[idx].name = this.value;
+        if (typeof namesHidden !== 'undefined' && namesHidden) {
+          this.classList.toggle('names-has-value', this.value.trim() !== '');
+        }
+      }
+    });
+    item.appendChild(nameInput);
 
     const votesInput = document.createElement('input');
     votesInput.type = 'number';
     votesInput.setAttribute('inputmode', 'numeric');
     votesInput.className = 'otros-item-votes-input';
+    votesInput.placeholder = '0';
+    votesInput.min = '0';
     votesInput.value = p.votes > 0 ? p.votes : '';
     votesInput.addEventListener('input', function () {
       otrosAbsorbedParties[idx].votes = parseInt(this.value) || 0;
@@ -330,7 +358,9 @@ function recalcOtrosTotal() {
   if (!mainInput) return;
   const total = otrosAbsorbedParties.reduce((s, p) => s + (p.votes || 0), 0);
   mainInput.value = total > 0 ? formatVotes(Math.min(total, 9000000000)) : '';
+  _otrosDropdownUpdating = true;
   updateTotals();
+  _otrosDropdownUpdating = false;
 }
 
 function syncManualFromMain(newTotal) {

@@ -34,6 +34,7 @@ function toggleSiglasVisibility() {
   });
 
   selectAll('.otros-siglas').forEach(span => setDisplay(span, siglasVisible));
+  selectAll('.otros-siglas-input').forEach(input => setDisplay(input, siglasVisible));
 
   if (!siglasVisible && namesHidden) {
     namesHidden = false;
