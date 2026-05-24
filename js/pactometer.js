@@ -314,7 +314,11 @@ function _updateHemicycleSettings(leftSeats, rightSeats, totalSeats, absoluteMaj
 
   if (blockLabels === 'no-si' || blockLabels === 'custom') {
     const requiredMajority = document.getElementById('required-majority')?.value || 'simple';
-    _applyVotingResult(votingResult, leftSeats, rightSeats, requiredMajority, absoluteMajority, threesFifths, twoThirds, null, null, true);
+    if (blockLabels === 'custom') {
+      _applyCustomVotingResult(votingResult, leftSeats, rightSeats, requiredMajority, absoluteMajority, threesFifths, twoThirds);
+    } else {
+      _applyVotingResult(votingResult, leftSeats, rightSeats, requiredMajority, absoluteMajority, threesFifths, twoThirds, null, null, true);
+    }
   } else if (blockLabels === 'izq-der' && (isCongressMode || isConcejalesMode)) {
     const congressRound = document.getElementById('congress-round')?.value || 'first';
     _applyVotingResult(votingResult, leftSeats, rightSeats, congressRound === 'first' ? 'absolute' : 'simple', absoluteMajority, threesFifths, twoThirds, currentLeftLabel, currentRightLabel, false);
@@ -349,6 +353,27 @@ function _applyVotingResult(el, leftSeats, rightSeats, mode, absMaj, threeFifths
       else if (rightSeats >= threshold) _showResult(el, `✓ ${rightLabel} INVESTIDO`,  'rgba(0,128,0,0.9)');
       else                              _showResult(el, '✗ NO HAY INVESTIDURA', 'rgba(139,32,32,0.9)');
     }
+  }
+}
+
+function _applyCustomVotingResult(el, leftSeats, rightSeats, mode, absMaj, threeFifths, twoThirds) {
+  const useComparison = mode === 'simple';
+  const threshold = mode === 'absolute' ? absMaj : mode === '3/5' ? threeFifths : mode === '2/3' ? twoThirds : null;
+
+  if (useComparison) {
+    if (leftSeats > rightSeats)
+      _showResult(el, `✓ ${currentLeftLabel} cumple con la mayoría necesaria`, 'rgba(0,128,0,0.9)');
+    else if (rightSeats > leftSeats)
+      _showResult(el, `✓ ${currentRightLabel} cumple con la mayoría necesaria`, 'rgba(0,128,0,0.9)');
+    else
+      _showResult(el, '✗ No cumple con la mayoría necesaria', 'rgba(139,32,32,0.9)');
+  } else {
+    if (leftSeats >= threshold)
+      _showResult(el, `✓ ${currentLeftLabel} cumple con la mayoría necesaria`, 'rgba(0,128,0,0.9)');
+    else if (rightSeats >= threshold)
+      _showResult(el, `✓ ${currentRightLabel} cumple con la mayoría necesaria`, 'rgba(0,128,0,0.9)');
+    else
+      _showResult(el, '✗ No cumple con la mayoría necesaria', 'rgba(139,32,32,0.9)');
   }
 }
 
