@@ -45,11 +45,25 @@ tr[data-is-otros="true"] td input[type=color] {
   font-size: 0.8rem;
   color: var(--text);
 }
+.otros-dropdown-item .otros-color-input {
+  width: 28px;
+  height: 24px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 1px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: border-color 0.12s;
+}
+.otros-dropdown-item .otros-color-input:hover {
+  border-color: var(--accent);
+}
 .otros-dropdown-item .otros-swatch {
   width: 10px; height: 10px;
   border-radius: 2px;
   flex-shrink: 0;
   border: 1px solid rgba(0,0,0,0.12);
+  display: none;
 }
 .otros-dropdown-item .otros-siglas {
   font-size: 0.7rem;

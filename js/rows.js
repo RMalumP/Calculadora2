@@ -278,10 +278,15 @@ function updateOtrosDropdown() {
       item.appendChild(ejectBtn);
     }
 
-    const swatch = document.createElement('span');
-    swatch.className = 'otros-swatch';
-    swatch.style.background = p.color || '#888888';
-    item.appendChild(swatch);
+    const colorInput = document.createElement('input');
+    colorInput.type = 'color';
+    colorInput.className = 'otros-color-input';
+    colorInput.value = p.color || '#888888';
+    colorInput.title = 'Color del partido';
+    colorInput.addEventListener('input', function () {
+      otrosAbsorbedParties[idx].color = this.value;
+    });
+    item.appendChild(colorInput);
 
     const siglasInput = document.createElement('input');
     siglasInput.type = 'text';
@@ -323,23 +328,22 @@ function updateOtrosDropdown() {
     votesInput.type = 'text';
     votesInput.setAttribute('inputmode', 'numeric');
     votesInput.className = 'otros-item-votes-input';
-    votesInput.value = p.votes > 0 ? p.votes : '';
-    let votesSelected = false;
+    votesInput.placeholder = '0';
+    const votesFmt = p.votes > 0 ? formatVotes(Math.min(p.votes, 9000000000)) : '';
+    votesInput.value = votesFmt;
     votesInput.addEventListener('focus', function () {
+      const num = parseVoteValue(this.value);
       this.type = 'number';
-      if (this.value && !votesSelected) {
-        this.select();
-        votesSelected = true;
-      }
+      this.value = num > 0 ? num : '';
     });
     votesInput.addEventListener('blur', function () {
+      const num = parseVoteValue(this.value);
       this.type = 'text';
-      const num = parseInt(this.value) || 0;
-      this.value = num > 0 ? num : '';
-      votesSelected = false;
+      this.value = num > 0 ? formatVotes(Math.min(num, 9000000000)) : '';
     });
     votesInput.addEventListener('input', function () {
-      otrosAbsorbedParties[idx].votes = parseInt(this.value) || 0;
+      formatVotesInput(this);
+      otrosAbsorbedParties[idx].votes = parseVoteValue(this.value);
       recalcOtrosTotal();
     });
     item.appendChild(votesInput);
