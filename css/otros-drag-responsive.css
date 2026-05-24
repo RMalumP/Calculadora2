@@ -3,6 +3,10 @@ tr[data-is-otros="true"] td {
   vertical-align: top;
 }
 
+tr[data-is-otros="true"] td input[type=color] {
+  margin-top: 3px;
+}
+
 .otros-label {
   display: inline-flex;
   align-items: center;
