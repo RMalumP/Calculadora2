@@ -175,7 +175,7 @@ tr.drag-over-below       { border-bottom: 2px solid var(--accent) !important; }
   position: fixed;
   top: 150px;
   right: 50px;
-  width: 550px;
+  width: 480px;
   background: white;
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -201,10 +201,11 @@ tr.drag-over-below       { border-bottom: 2px solid var(--accent) !important; }
   cursor: grabbing;
 }
 .hemicycle-window-content {
-  padding: 20px;
+  padding: 30px 20px;
   display: flex;
   justify-content: center;
   align-items: center;
+  min-height: 250px;
 }
 
 /* ── MOBILE (≤ 700 px) ──────────────────────────────────────── */

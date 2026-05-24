@@ -67,68 +67,68 @@ function drawHemicycle() {
   const results = getResults();
   if (!results || results.length === 0) return;
 
-  const svg = document.getElementById('hemicycle-svg');
-  svg.innerHTML = '';
+  const container = document.getElementById('hemicycle-svg').parentElement;
+  if (!container) return;
 
-  const width = 385;
-  const height = 192.5;
-  const centerX = width / 2;
-  const centerY = height;
-  const radiusOuter = 192.5;
-  const radiusInner = 146.3;
-
-  svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+  let segmentsContainer = container.querySelector('#hemicycle-segments-container');
+  if (!segmentsContainer) {
+    segmentsContainer = document.createElement('div');
+    segmentsContainer.id = 'hemicycle-segments-container';
+    segmentsContainer.style.cssText = `
+      position: relative;
+      width: 100%;
+      max-width: 400px;
+      aspect-ratio: 2/1;
+      margin: 0 auto;
+    `;
+    container.insertBefore(segmentsContainer, container.firstChild);
+  }
+  segmentsContainer.innerHTML = '';
 
   const totalSeats = results.reduce((sum, r) => sum + r.seats, 0);
   if (totalSeats === 0) return;
 
-  const mainGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-  mainGroup.setAttribute('id', 'hemicycle-sectors');
-  mainGroup.setAttribute('transform', `translate(${centerX},${centerY})`);
+  const radius = 150;
+  const seatSize = 14;
+  const radiusCenter = radius - seatSize / 2;
 
-  let currentAngleDeg = 0;
-  const anglePerSeat = 180 / totalSeats;
-
+  let seatIndex = 0;
   results.forEach(result => {
     for (let i = 0; i < result.seats; i++) {
-      const startAngleDeg = currentAngleDeg;
-      const endAngleDeg = currentAngleDeg + anglePerSeat;
-      const startAngleRad = (startAngleDeg - 90) * Math.PI / 180;
-      const endAngleRad = (endAngleDeg - 90) * Math.PI / 180;
+      const anglePercent = seatIndex / totalSeats;
+      const angleDeg = anglePercent * 180;
+      const angleRad = (angleDeg - 90) * Math.PI / 180;
 
-      const x1Outer = radiusOuter * Math.cos(startAngleRad);
-      const y1Outer = radiusOuter * Math.sin(startAngleRad);
-      const x2Outer = radiusOuter * Math.cos(endAngleRad);
-      const y2Outer = radiusOuter * Math.sin(endAngleRad);
+      const x = radiusCenter * Math.cos(angleRad);
+      const y = radiusCenter * Math.sin(angleRad);
 
-      const x1Inner = radiusInner * Math.cos(startAngleRad);
-      const y1Inner = radiusInner * Math.sin(startAngleRad);
-      const x2Inner = radiusInner * Math.cos(endAngleRad);
-      const y2Inner = radiusInner * Math.sin(endAngleRad);
-
-      const largeArc = anglePerSeat > 90 ? 1 : 0;
-
-      const pathData = `
-        M ${x1Outer},${y1Outer}
-        A ${radiusOuter},${radiusOuter} 0 ${largeArc},1 ${x2Outer},${y2Outer}
-        L ${x2Inner},${y2Inner}
-        A ${radiusInner},${radiusInner} 0 ${largeArc},0 ${x1Inner},${y1Inner}
-        Z
+      const seat = document.createElement('div');
+      seat.style.cssText = `
+        position: absolute;
+        width: ${seatSize}px;
+        height: ${seatSize}px;
+        background-color: ${result.color};
+        border: 1px solid white;
+        border-radius: 2px;
+        left: 50%;
+        top: 50%;
+        transform: translate(calc(-50% + ${x}px), calc(-50% + ${y}px));
+        cursor: default;
+        transition: opacity 0.2s;
       `;
+      seat.title = `${result.name}`;
 
-      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      path.setAttribute('d', pathData);
-      path.setAttribute('fill', result.color);
-      path.setAttribute('stroke', 'white');
-      path.setAttribute('stroke-width', '0.5');
-      path.setAttribute('opacity', '0.95');
+      seat.addEventListener('mouseenter', () => {
+        seat.style.opacity = '0.8';
+      });
+      seat.addEventListener('mouseleave', () => {
+        seat.style.opacity = '1';
+      });
 
-      mainGroup.appendChild(path);
-      currentAngleDeg += anglePerSeat;
+      segmentsContainer.appendChild(seat);
+      seatIndex++;
     }
   });
-
-  svg.appendChild(mainGroup);
 }
 
 function getResults() {
