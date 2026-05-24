@@ -303,6 +303,7 @@
         <div class="card-header">
           <span class="dot"></span>Partidos con representación
           <div style="margin-left:auto;display:flex;gap:8px">
+            <button id="pact-lock-btn" onclick="togglePactLock()" class="ghost-btn" title="Bloquear actualización desde calculadora">🔓 Bloquear</button>
             <button onclick="resetPactometer()"       class="ghost-btn">Reiniciar</button>
             <button onclick="clearPactometerSeats()"  class="ghost-btn">Borrar <span class="seat-name-ref">escaños</span></button>
             <button onclick="clearPactometerBlocks()" class="ghost-btn">Borrar bloques</button>
@@ -386,6 +387,7 @@
                 <div style="position:absolute;top:0;bottom:0;left:0;width:2px;background:white;opacity:0.9"></div>
                 <div style="position:absolute;top:0;bottom:0;left:4px;width:2px;background:white;opacity:0.9"></div>
               </div>
+              <div id="hemicycle-segments" style="position:absolute;top:0;left:0;right:0;bottom:0;z-index:5"></div>
             </div>
           </div>
 
