@@ -6,17 +6,58 @@
 }
 
 .workspace {
-  display: grid;
-  grid-template-columns: 1fr 240px 1fr;
+  display: flex;
   gap: 20px;
   align-items: start;
 }
 
-.col-left        { grid-column: 1; grid-row: 1; display: flex; flex-direction: column; gap: 14px; }
-.col-right       { grid-column: 2; grid-row: 1; display: flex; flex-direction: column; gap: 14px; }
-.col-breakdown   { grid-column: 3; grid-row: 1; }
-.col-second-round{ grid-column: 1; grid-row: 2; }
-.col-results     { grid-column: 1; grid-row: 3; }
+/* ── COLUMNA IZQUIERDA: votos + desglose ──────────────────── */
+.left-column {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex-shrink: 0;
+}
+
+.main-left {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── ASIDE: desglose bajo la tabla de votos ───────────────── */
+/* width:0 excluye breakdown-aside del cálculo de ancho de    */
+/* left-column (lo fija main-left); min-width:100% lo         */
+/* estira al ancho resultante; overflow-x:auto da scroll.     */
+.breakdown-aside {
+  width: 0;
+  min-width: 100%;
+  overflow-x: auto;
+}
+
+/* ── MAIN RIGHT: parámetros + resultados ──────────────────── */
+/* min-width = ancho por defecto de results-card (560 px)     */
+/* param-area = max 1/4 de ese ancho (140 px)                 */
+.main-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 560px;
+}
+
+.param-area {
+  width: 40%;
+}
+
+.results-area {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 
 /* ── CARDS ─────────────────────────────────────────────────── */
 .card {

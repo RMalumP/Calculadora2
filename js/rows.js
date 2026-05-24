@@ -176,6 +176,16 @@ function _buildRow(name, votes, color, isOtros) {
       updateSecondRoundIfActive();
     });
 
+    const votesInput = tr.querySelector('.votes-input');
+    votesInput.addEventListener('input', function () {
+      const otrosRow = getOrCreateOtrosRow();
+      const prevOfOtros = otrosRow.previousElementSibling;
+      const numVal = parseInt(this.value.replace(/[\.\s]/g, ''), 10);
+      if (tr === prevOfOtros && !isNaN(numVal) && numVal > 0) {
+        _insertBeforeOtros('', '', '', false);
+      }
+    });
+
     tr.querySelector('input[type=color]').addEventListener('input', updateSecondRoundIfActive);
 
     if (typeof siglasVisible !== 'undefined' && siglasVisible) {
