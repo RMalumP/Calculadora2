@@ -303,6 +303,7 @@
         <div class="card-header">
           <span class="dot"></span>Partidos con representación
           <div style="margin-left:auto;display:flex;gap:8px">
+            <button id="pact-lock-btn" onclick="togglePactLock()" class="ghost-btn" title="Bloquear actualización desde calculadora">🔓 Bloquear</button>
             <button onclick="resetPactometer()"       class="ghost-btn">Reiniciar</button>
             <button onclick="clearPactometerSeats()"  class="ghost-btn">Borrar <span class="seat-name-ref">escaños</span></button>
             <button onclick="clearPactometerBlocks()" class="ghost-btn">Borrar bloques</button>
@@ -338,29 +339,23 @@
         <div class="card-header"><span class="dot"></span>Hemiciclo</div>
         <div style="padding:30px;display:flex;flex-direction:column;align-items:center;gap:20px">
 
-          <div id="voting-settings" style="display:none;width:700px;padding:12px 20px;background:var(--accent-bg);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:-10px">
-            <div style="display:flex;align-items:center;gap:15px">
-              <label style="font-size:0.85rem;font-weight:600;color:var(--text-muted)">Mayoría requerida:</label>
-              <select id="required-majority" onchange="updateHemicycle()" style="padding:6px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:0.85rem;background:white;font-family:'Source Sans 3',sans-serif">
-                <option value="simple">Mayoría simple (&gt; 50%)</option>
-                <option value="absolute">Mayoría absoluta (≥ mitad + 1)</option>
-                <option value="3/5">Mayoría cualificada 3/5 (≥ 60%)</option>
-                <option value="2/3">Mayoría cualificada 2/3 (≥ 66.67%)</option>
-              </select>
+          <button id="voting-panel-toggle" onclick="toggleVotingPanel()"
+            style="display:none;width:700px;background:none;color:var(--text-muted);border:none;padding:2px 4px;font-family:'Source Sans 3',sans-serif;font-size:0.78rem;font-weight:600;cursor:pointer;text-align:left;transition:color 0.15s;margin:0"
+            onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-muted)'">&#9650; Configuración de votación</button>
+          <div id="voting-panel-wrapper" style="display:none;flex-direction:column;align-items:center;gap:10px;width:700px">
+            <div id="combined-settings" style="display:none;width:700px;padding:4px 20px;background:var(--accent-bg);border:1px solid var(--border);border-radius:var(--radius)">
+              <div style="display:flex;align-items:center;gap:15px">
+                <span id="settings-label" style="font-size:0.85rem;font-weight:600;color:var(--text-muted)">Mayoría requerida:</span>
+                <select id="settings-select" onchange="updateHemicycle()" style="padding:6px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:0.85rem;background:white;font-family:'Source Sans 3',sans-serif">
+                  <option value="simple">Mayoría simple (&gt; 50%)</option>
+                  <option value="absolute">Mayoría absoluta (≥ mitad + 1)</option>
+                  <option value="3/5">Mayoría cualificada 3/5 (≥ 60%)</option>
+                  <option value="2/3">Mayoría cualificada 2/3 (≥ 66.67%)</option>
+                </select>
+              </div>
             </div>
+            <div id="voting-result" style="display:none;padding:10px 20px;background:rgba(0,0,0,0.8);color:white;border-radius:6px;font-size:1rem;font-weight:700"></div>
           </div>
-
-          <div id="congress-settings" style="display:none;width:700px;padding:12px 20px;background:var(--accent-bg);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:-10px">
-            <div style="display:flex;align-items:center;gap:15px">
-              <span id="congress-label" style="font-size:0.85rem;font-weight:600;color:var(--text)">Investidura:</span>
-              <select id="congress-round" onchange="updateHemicycle()" style="padding:6px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:0.85rem;background:white;font-family:'Source Sans 3',sans-serif">
-                <option value="first">Primera vuelta - Mayoría absoluta</option>
-                <option value="second">Segunda vuelta - Mayoría simple</option>
-              </select>
-            </div>
-          </div>
-
-          <div id="voting-result" style="display:none;padding:10px 20px;background:rgba(0,0,0,0.8);color:white;border-radius:6px;font-size:1rem;font-weight:700"></div>
 
           <div style="display:flex;flex-direction:column;gap:0">
             <div id="hemicycle-legend" style="width:700px;display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
@@ -386,6 +381,7 @@
                 <div style="position:absolute;top:0;bottom:0;left:0;width:2px;background:white;opacity:0.9"></div>
                 <div style="position:absolute;top:0;bottom:0;left:4px;width:2px;background:white;opacity:0.9"></div>
               </div>
+              <div id="hemicycle-segments" style="position:absolute;top:0;left:0;right:0;bottom:0;z-index:5"></div>
             </div>
           </div>
 
@@ -395,7 +391,7 @@
               <span id="abstentions-count"   style="font-size:1.1rem;font-weight:700;color:var(--text)">0</span>
               <span id="abstentions-percent" style="font-size:0.8rem;color:var(--text-muted);margin-left:4px"></span>
             </div>
-            <div id="abstentions-colors" style="display:flex;gap:4px;margin-left:10px;flex-wrap:wrap"></div>
+            <div id="hemicycle-abstentions-swatches" style="display:flex;gap:4px;margin-left:10px;flex-wrap:wrap"></div>
           </div>
 
         </div>
