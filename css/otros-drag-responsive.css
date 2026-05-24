@@ -1,4 +1,8 @@
 /* ── OTROS PARTIDOS PANEL ───────────────────────────────────── */
+tr[data-is-otros="true"] td {
+  vertical-align: top;
+}
+
 .otros-label {
   display: inline-flex;
   align-items: center;
