@@ -23,8 +23,6 @@
 .otros-dropdown {
   display: none;
   margin-top: 4px;
-  background: var(--row-alt);
-  border: 1px solid var(--border-light);
   border-radius: var(--radius);
   padding: 4px 0;
   width: 100%;
@@ -33,39 +31,55 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 2px 6px 2px 10px;
+  padding: 3px 6px;
   font-size: 0.8rem;
   color: var(--text);
 }
 .otros-dropdown-item .otros-swatch {
-  width: 8px; height: 8px;
+  width: 10px; height: 10px;
   border-radius: 2px;
   flex-shrink: 0;
   border: 1px solid rgba(0,0,0,0.12);
 }
+.otros-dropdown-item .otros-siglas {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  font-weight: 600;
+}
 .otros-dropdown-item .otros-item-name {
-  flex: 1;
+  flex: 0 1 auto;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .otros-dropdown-item .otros-item-votes-input {
-  width: 72px;
+  width: 70px;
   border: 1px solid var(--border);
   border-radius: 2px;
   background: var(--surface);
   font-family: 'Source Sans 3', sans-serif;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   font-variant-numeric: tabular-nums;
   color: var(--text);
   text-align: right;
-  padding: 1px 4px;
+  padding: 2px 4px;
   flex-shrink: 0;
 }
 .otros-dropdown-item .otros-item-votes-input:focus {
   outline: none;
   border-color: var(--accent);
   background: #fffef9;
+}
+.otros-dropdown-item .otros-item-pct {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  min-width: 45px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 .otros-dropdown-item.manual .otros-item-name {
   font-style: italic;
@@ -84,14 +98,16 @@
   border: 1px solid var(--border);
   border-radius: 2px;
   cursor: pointer;
-  font-size: 10px;
-  padding: 1px 5px;
+  font-size: 9px;
+  padding: 0px 4px;
   color: var(--text-muted);
-  line-height: 1.5;
+  line-height: 1.4;
   flex-shrink: 0;
   transition: background var(--transition), color var(--transition);
 }
 .otros-eject-btn:hover { background: var(--accent-pale); color: var(--accent); border-color: var(--accent-light); }
+.otros-dropdown-item .otros-item-name.names-hidden-mode { color: #c07070 !important; }
+.otros-dropdown-item .otros-item-name.names-hidden-mode.names-has-value { color: #8b3131 !important; }
 
 /* ── ROW ACTION BUTTONS ─────────────────────────────────────── */
 .row-actions { display: flex; flex-direction: column; gap: 2px; align-items: center; }

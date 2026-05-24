@@ -25,6 +25,10 @@ function toggleSiglasVisibility() {
     }
   });
 
+  document.querySelectorAll('.otros-siglas').forEach(span => {
+    span.style.display = siglasVisible ? '' : 'none';
+  });
+
   document.querySelectorAll('#second-round-body .sr-siglas-prefix').forEach(el => {
     const s = el.dataset.siglas || '';
     el.style.display = (siglasVisible && s) ? '' : 'none';
@@ -74,6 +78,16 @@ function toggleHideNames() {
   document.querySelectorAll('.result-siglas-prefix').forEach(el => {
     const s = el.dataset.siglas || '';
     el.textContent = s + (namesHidden ? '' : '-');
+  });
+
+  document.querySelectorAll('.otros-item-name').forEach(span => {
+    if (namesHidden) {
+      span.classList.add('names-hidden-mode');
+      if (span.textContent.trim()) span.classList.add('names-has-value');
+      else span.classList.remove('names-has-value');
+    } else {
+      span.classList.remove('names-hidden-mode', 'names-has-value');
+    }
   });
 
   document.querySelectorAll('#second-round-body .sr-name-input').forEach(inp => {

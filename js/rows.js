@@ -277,31 +277,18 @@ function updateOtrosDropdown() {
     return;
   }
 
+  const allRows = getAllPartyRows();
+  let totalVotes = 0;
+  allRows.forEach(tr => {
+    if (tr.dataset.isOtros) return;
+    const input = tr.querySelector('.votes-input');
+    totalVotes += parseVoteValue(input?.value);
+  });
+  totalVotes += otrosAbsorbedParties.reduce((s, p) => s + p.votes, 0);
+
   otrosAbsorbedParties.forEach((p, idx) => {
     const item = document.createElement('div');
     item.className = 'otros-dropdown-item' + (p.isManual ? ' manual' : '');
-
-    const swatch = document.createElement('span');
-    swatch.className = 'otros-swatch';
-    swatch.style.background = p.color || '#888888';
-    item.appendChild(swatch);
-
-    const nameSpan = document.createElement('span');
-    nameSpan.className = 'otros-item-name';
-    nameSpan.textContent = p.isManual ? 'Otros (manual)' : p.name;
-    item.appendChild(nameSpan);
-
-    const votesInput = document.createElement('input');
-    votesInput.type = 'text';
-    votesInput.setAttribute('inputmode', 'numeric');
-    votesInput.className = 'otros-item-votes-input';
-    votesInput.value = p.votes > 0 ? addThousandDots(Math.min(p.votes, 9000000000)) : '';
-    votesInput.addEventListener('input', function () {
-      formatVoteInput(this);
-      otrosAbsorbedParties[idx].votes = parseVoteValue(this.value);
-      recalcOtrosTotal();
-    });
-    item.appendChild(votesInput);
 
     if (!p.isManual) {
       const ejectBtn = document.createElement('button');
@@ -311,6 +298,45 @@ function updateOtrosDropdown() {
       ejectBtn.addEventListener('click', () => ejectFromOtros(idx));
       item.appendChild(ejectBtn);
     }
+
+    const swatch = document.createElement('span');
+    swatch.className = 'otros-swatch';
+    swatch.style.background = p.color || '#888888';
+    item.appendChild(swatch);
+
+    const siglasSpan = document.createElement('span');
+    siglasSpan.className = 'otros-siglas';
+    siglasSpan.dataset.siglas = p.siglas || '';
+    siglasSpan.textContent = p.siglas || '';
+    siglasSpan.style.display = (typeof siglasVisible !== 'undefined' && siglasVisible) ? '' : 'none';
+    item.appendChild(siglasSpan);
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'otros-item-name';
+    if (typeof namesHidden !== 'undefined' && namesHidden) {
+      nameSpan.classList.add('names-hidden-mode');
+      const name = p.isManual ? 'Otros (manual)' : p.name;
+      if (name.trim()) nameSpan.classList.add('names-has-value');
+    }
+    nameSpan.textContent = p.isManual ? 'Otros (manual)' : p.name;
+    item.appendChild(nameSpan);
+
+    const votesInput = document.createElement('input');
+    votesInput.type = 'number';
+    votesInput.setAttribute('inputmode', 'numeric');
+    votesInput.className = 'otros-item-votes-input';
+    votesInput.value = p.votes > 0 ? p.votes : '';
+    votesInput.addEventListener('input', function () {
+      otrosAbsorbedParties[idx].votes = parseInt(this.value) || 0;
+      recalcOtrosTotal();
+    });
+    item.appendChild(votesInput);
+
+    const pctSpan = document.createElement('span');
+    pctSpan.className = 'otros-item-pct';
+    const pct = totalVotes > 0 ? (p.votes / totalVotes * 100).toFixed(2) : '0.00';
+    pctSpan.textContent = pct + '%';
+    item.appendChild(pctSpan);
 
     dropdown.appendChild(item);
   });
