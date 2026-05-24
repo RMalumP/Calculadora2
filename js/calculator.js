@@ -163,7 +163,7 @@ function displayResults(allocated, totalValid, totalSeats, formula, excludedBarr
     const diff     = (parseFloat(seatPct) - parseFloat(votePct)).toFixed(2);
     const diffSign = diff > 0 ? '+' : '';
     const diffColor = diff > 0 ? 'color:#6b2020' : diff < 0 ? 'color:#20506b' : 'color:var(--text-muted)';
-    const barW     = Math.min(p.seats / totalSeats * 100 * 1.8, 120);
+    const barPct   = totalSeats > 0 ? (p.seats / totalSeats * 100).toFixed(1) : 0;
     const color    = p.color || '#888888';
     const _siglasVis = typeof siglasVisible !== 'undefined' && siglasVisible;
     const _namesHid  = typeof namesHidden  !== 'undefined' && namesHidden;
@@ -183,7 +183,9 @@ function displayResults(allocated, totalValid, totalSeats, formula, excludedBarr
       <td>
         <div class="seats-bar-wrap">
           <span class="result-badge" style="background:${color}">${p.seats}</span>
-          <div class="seats-bar" style="width:${barW}px;background:${color};opacity:0.6"></div>
+          <div class="seats-bar-outer">
+            <div class="seats-bar" style="width:${barPct}%;background:${color};opacity:0.6"></div>
+          </div>
         </div>
       </td>
       <td class="pct-cell" style="font-size:0.82rem">${seatPct}%</td>
