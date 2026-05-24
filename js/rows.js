@@ -283,22 +283,41 @@ function updateOtrosDropdown() {
     swatch.style.background = p.color || '#888888';
     item.appendChild(swatch);
 
-    const siglasSpan = document.createElement('span');
-    siglasSpan.className = 'otros-siglas';
-    siglasSpan.dataset.siglas = p.siglas || '';
-    siglasSpan.textContent = p.siglas || '';
-    siglasSpan.style.display = (typeof siglasVisible !== 'undefined' && siglasVisible) ? '' : 'none';
-    item.appendChild(siglasSpan);
+    const siglasInput = document.createElement('input');
+    siglasInput.type = 'text';
+    siglasInput.className = 'otros-siglas-input';
+    siglasInput.maxLength = '6';
+    siglasInput.placeholder = 'Sig.';
+    siglasInput.value = p.siglas || '';
+    siglasInput.style.display = (typeof siglasVisible !== 'undefined' && siglasVisible) ? '' : 'none';
+    siglasInput.addEventListener('input', function () {
+      otrosAbsorbedParties[idx].siglas = this.value.toUpperCase();
+    });
+    siglasInput.addEventListener('change', function () {
+      this.value = this.value.toUpperCase();
+      otrosAbsorbedParties[idx].siglas = this.value;
+    });
+    item.appendChild(siglasInput);
 
-    const nameSpan = document.createElement('span');
-    nameSpan.className = 'otros-item-name';
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.className = 'otros-item-name-input';
+    nameInput.placeholder = 'Nombre del partido';
+    nameInput.value = p.isManual ? 'Otros (manual)' : p.name;
+    nameInput.readOnly = p.isManual;
     if (typeof namesHidden !== 'undefined' && namesHidden) {
-      nameSpan.classList.add('names-hidden-mode');
-      const name = p.isManual ? 'Otros (manual)' : p.name;
-      if (name.trim()) nameSpan.classList.add('names-has-value');
+      nameInput.classList.add('names-hidden-mode');
+      if (nameInput.value.trim()) nameInput.classList.add('names-has-value');
     }
-    nameSpan.textContent = p.isManual ? 'Otros (manual)' : p.name;
-    item.appendChild(nameSpan);
+    nameInput.addEventListener('input', function () {
+      if (!p.isManual) {
+        otrosAbsorbedParties[idx].name = this.value;
+        if (typeof namesHidden !== 'undefined' && namesHidden) {
+          this.classList.toggle('names-has-value', this.value.trim() !== '');
+        }
+      }
+    });
+    item.appendChild(nameInput);
 
     const votesInput = document.createElement('input');
     votesInput.type = 'number';
