@@ -339,16 +339,22 @@
         <div class="card-header"><span class="dot"></span>Hemiciclo</div>
         <div style="padding:30px;display:flex;flex-direction:column;align-items:center;gap:20px">
 
-          <div id="voting-settings" style="display:none;width:700px;padding:12px 20px;background:var(--accent-bg);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:-10px">
-            <div style="display:flex;align-items:center;gap:15px">
-              <label style="font-size:0.85rem;font-weight:600;color:var(--text-muted)">Mayoría requerida:</label>
-              <select id="required-majority" onchange="updateHemicycle()" style="padding:6px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:0.85rem;background:white;font-family:'Source Sans 3',sans-serif">
-                <option value="simple">Mayoría simple (&gt; 50%)</option>
-                <option value="absolute">Mayoría absoluta (≥ mitad + 1)</option>
-                <option value="3/5">Mayoría cualificada 3/5 (≥ 60%)</option>
-                <option value="2/3">Mayoría cualificada 2/3 (≥ 66.67%)</option>
-              </select>
+          <button id="voting-panel-toggle" onclick="toggleVotingPanel()"
+            style="display:none;width:700px;background:var(--accent-bg);color:var(--text-muted);border:1px solid var(--border);padding:7px 16px;font-family:'Source Sans 3',sans-serif;font-size:0.8rem;font-weight:600;cursor:pointer;text-align:left;border-radius:var(--radius);transition:color 0.15s;margin-bottom:-10px"
+            onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-muted)'">&#9660; Configuración de votación</button>
+          <div id="voting-panel-wrapper" style="display:none;flex-direction:column;align-items:center;gap:10px;width:700px">
+            <div id="voting-settings" style="display:none;width:700px;padding:12px 20px;background:var(--accent-bg);border:1px solid var(--border);border-radius:var(--radius)">
+              <div style="display:flex;align-items:center;gap:15px">
+                <label style="font-size:0.85rem;font-weight:600;color:var(--text-muted)">Mayoría requerida:</label>
+                <select id="required-majority" onchange="updateHemicycle()" style="padding:6px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:0.85rem;background:white;font-family:'Source Sans 3',sans-serif">
+                  <option value="simple">Mayoría simple (&gt; 50%)</option>
+                  <option value="absolute">Mayoría absoluta (≥ mitad + 1)</option>
+                  <option value="3/5">Mayoría cualificada 3/5 (≥ 60%)</option>
+                  <option value="2/3">Mayoría cualificada 2/3 (≥ 66.67%)</option>
+                </select>
+              </div>
             </div>
+            <div id="voting-result" style="display:none;padding:10px 20px;background:rgba(0,0,0,0.8);color:white;border-radius:6px;font-size:1rem;font-weight:700"></div>
           </div>
 
           <div id="congress-settings" style="display:none;width:700px;padding:12px 20px;background:var(--accent-bg);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:-10px">
@@ -360,8 +366,6 @@
               </select>
             </div>
           </div>
-
-          <div id="voting-result" style="display:none;padding:10px 20px;background:rgba(0,0,0,0.8);color:white;border-radius:6px;font-size:1rem;font-weight:700"></div>
 
           <div style="display:flex;flex-direction:column;gap:0">
             <div id="hemicycle-legend" style="width:700px;display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">

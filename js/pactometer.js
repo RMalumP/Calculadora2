@@ -9,6 +9,7 @@ let currentRightLabel = 'DER';
 let pactSiglasVisible = false;
 let pactNamesHidden   = false;
 let pactLocked        = false;
+let votingPanelOpen   = false;
 
 /* ── FILAS DEL PACTÓMETRO ──────────────────────────────────── */
 
@@ -276,7 +277,11 @@ function _updateHemicycleSettings(leftSeats, rightSeats, totalSeats, absoluteMaj
   const isCongressMode  = currentSeatName === 'congresistas' || currentSeatName === 'escaños';
   const isConcejalesMode = currentSeatName === 'concejales';
 
+  const votingToggle  = document.getElementById('voting-panel-toggle');
+  const votingWrapper = document.getElementById('voting-panel-wrapper');
+
   if (blockLabels === 'no-si' || blockLabels === 'custom') {
+    if (votingToggle)  votingToggle.style.display  = 'block';
     votingSettings.style.display   = 'block';
     congressSettings.style.display = 'none';
   } else if (blockLabels === 'izq-der' && (isCongressMode || isConcejalesMode)) {
@@ -305,6 +310,10 @@ function _updateHemicycleSettings(leftSeats, rightSeats, totalSeats, absoluteMaj
   } else {
     votingSettings.style.display   = 'none';
     congressSettings.style.display = 'none';
+    if (votingToggle)  { votingToggle.style.display  = 'none'; }
+    if (votingWrapper) { votingWrapper.style.display = 'none'; votingPanelOpen = false;
+      if (votingToggle) { votingToggle.textContent = '▼ Configuración de votación'; }
+    }
   }
 
   if (leftSeats === 0 && rightSeats === 0) { votingResult.style.display = 'none'; return; }
@@ -460,6 +469,16 @@ function updateHemicycleLabels() {
   const r = document.getElementById('hemicycle-right-label');
   if (l) l.textContent = currentLeftLabel;
   if (r) r.textContent = currentRightLabel;
+}
+
+/* ── PANEL CONFIGURACIÓN VOTACIÓN ──────────────────────────── */
+
+function toggleVotingPanel() {
+  votingPanelOpen = !votingPanelOpen;
+  const wrapper = document.getElementById('voting-panel-wrapper');
+  const btn     = document.getElementById('voting-panel-toggle');
+  if (wrapper) wrapper.style.display = votingPanelOpen ? 'flex' : 'none';
+  if (btn) btn.textContent = votingPanelOpen ? '▲ Configuración de votación' : '▼ Configuración de votación';
 }
 
 /* ── BLOQUEO PACTÓMETRO ─────────────────────────────────────── */
