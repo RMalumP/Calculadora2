@@ -184,7 +184,6 @@ tr.drag-over-below       { border-bottom: 2px solid var(--accent) !important; }
   /* Columna derecha: params arriba, resultados abajo */
   .main-right {
     flex: 1 1 55%;
-    flex-direction: column;
     min-width: 0;
     gap: 10px;
   }

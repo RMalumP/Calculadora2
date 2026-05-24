@@ -25,22 +25,19 @@
 .main-right {
   flex: 1;
   display: flex;
+  flex-direction: column;
   gap: 16px;
-  align-items: start;
   min-width: 560px;
 }
 
 .param-area {
-  flex-shrink: 0;
-  width: 140px;
+  max-width: 140px;
 }
 
 .results-area {
-  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  min-width: 0;
 }
 
 /* ── ASIDE: desglose de cocientes ─────────────────────────── */
