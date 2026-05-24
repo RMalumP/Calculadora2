@@ -91,8 +91,6 @@ tr[data-is-otros="true"] td input[type=color] {
   white-space: nowrap;
 }
 .otros-dropdown-item .otros-item-name-input {
-  flex: 0 1 auto;
-  min-width: 80px;
   border: 1px solid var(--border);
   border-radius: 2px;
   background: var(--surface);
@@ -101,6 +99,8 @@ tr[data-is-otros="true"] td input[type=color] {
   color: var(--text);
   padding: 2px 4px;
   transition: border-color 0.12s, background 0.12s;
+  width: 35px;
+  flex-shrink: 0;
 }
 .otros-dropdown-item .otros-item-name-input:focus {
   outline: none;

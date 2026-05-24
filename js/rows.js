@@ -309,6 +309,19 @@ function updateOtrosDropdown() {
       nameInput.classList.add('names-hidden-mode');
       if (nameInput.value.trim()) nameInput.classList.add('names-has-value');
     }
+
+    const adjustNameInputWidth = () => {
+      if (nameInput.value.trim()) {
+        nameInput.style.width = 'auto';
+        nameInput.style.minWidth = '80px';
+        // Ajustar el ancho basado en el contenido
+        nameInput.style.width = Math.max(80, nameInput.scrollWidth + 4) + 'px';
+      } else {
+        nameInput.style.width = '35px';
+        nameInput.style.minWidth = '35px';
+      }
+    };
+
     nameInput.addEventListener('input', function () {
       if (!p.isManual) {
         otrosAbsorbedParties[idx].name = this.value;
@@ -316,7 +329,15 @@ function updateOtrosDropdown() {
           this.classList.toggle('names-has-value', this.value.trim() !== '');
         }
       }
+      adjustNameInputWidth();
     });
+
+    nameInput.addEventListener('focus', adjustNameInputWidth);
+    nameInput.addEventListener('blur', adjustNameInputWidth);
+
+    // Ajustar al cargar
+    setTimeout(adjustNameInputWidth, 0);
+
     item.appendChild(nameInput);
 
     const votesInput = document.createElement('input');
