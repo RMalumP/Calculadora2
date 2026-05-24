@@ -154,14 +154,79 @@ tr.drag-over-below       { border-bottom: 2px solid var(--accent) !important; }
   #votes-table { min-width: 430px; width: 100%; }
 }
 
+/* ── MOBILE (≤ 700 px) ──────────────────────────────────────── */
 @media (max-width: 700px) {
-  header { padding: 14px; flex-direction: column; gap: 3px; }
-  .main  { padding: 14px 10px 40px; }
-  .workspace { grid-template-columns: 1fr; }
-  .col-left        { grid-column: 1; grid-row: 1; }
-  .col-right       { grid-column: 1; grid-row: 2; }
-  .col-breakdown   { grid-column: 1; grid-row: 3; }
-  .col-second-round{ grid-column: 1; grid-row: 4; }
-  .col-results     { grid-column: 1; grid-row: 5; }
+  header {
+    padding: 12px 14px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  header h1 { font-size: 1.25rem; }
+  header span { font-size: 0.78rem; }
+  header #seat-rename { margin-left: 0; margin-top: 4px; }
+
+  .main { padding: 10px 10px 40px; }
+
+  /* Stack workspace vertically */
+  .workspace {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  /* 1. Tabla de votos (full width) */
+  .main-left {
+    width: 100%;
+    gap: 10px;
+  }
+
+  /* 2. Parámetros + resultados (full width, stacked column) */
+  .main-right {
+    width: 100%;
+    flex-direction: column;
+    min-width: unset;
+    gap: 10px;
+  }
+
+  /* Param-card se expande a ancho completo en móvil */
+  .param-area {
+    width: 100%;
+  }
+  .param-card {
+    width: 100%;
+  }
+  .param-body {
+    padding: 14px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  /* Fórmula y botón ocupan columna completa */
+  .formula-field,
+  .calc-btn {
+    grid-column: 1 / -1;
+  }
+
+  /* Results full width */
+  .results-area {
+    width: 100%;
+  }
+
+  /* 3. Desglose (full width, al final) */
+  .breakdown-aside {
+    width: 100%;
+  }
+
+  /* Ajustes de tablas para pantalla pequeña */
   td, th { padding: 5px 7px; }
+  .votes-table-scroll { overflow-x: auto; }
+  #votes-table { min-width: 390px; }
+
+  /* Totals strip más compacto */
+  .totals-strip {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 10px 14px;
+  }
+  .totals-strip .values { gap: 16px; flex-wrap: wrap; justify-content: flex-end; }
 }

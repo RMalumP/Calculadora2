@@ -212,7 +212,7 @@ function toggleBreakdown() {
 
   if (open) {
     setTimeout(() => {
-      const col = document.querySelector('.col-breakdown');
+      const col = document.querySelector('.breakdown-aside');
       if (col) document.documentElement.style.setProperty('--breakdown-width', `${col.offsetWidth}px`);
     }, 10);
   }

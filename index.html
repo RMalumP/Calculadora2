@@ -43,8 +43,8 @@
   <div id="calculator-tab" class="tab-content active">
   <div class="workspace">
 
-    <!-- ── COLUMNA IZQUIERDA ── -->
-    <div class="col-left">
+    <!-- ══ MAIN IZQUIERDA: tabla de votos + abstención + totales ══ -->
+    <main class="main-left">
 
       <!-- Tabla de votos -->
       <div class="card">
@@ -85,6 +85,27 @@
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5.5" stroke="currentColor" stroke-width="1.1"/><path d="M6 3v6M3 6h6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
           Añadir partido
         </button>
+      </div>
+
+      <!-- Segunda vuelta (oculta por defecto) -->
+      <div id="second-round-container" style="display:none">
+        <div class="card">
+          <div class="card-header"><span class="dot"></span>Segunda vuelta</div>
+          <table>
+            <thead>
+              <tr>
+                <th style="width:36px;text-align:center">Color</th>
+                <th>Candidatura</th>
+                <th style="text-align:right">Votos</th>
+                <th style="text-align:right">%</th>
+              </tr>
+            </thead>
+            <tbody id="second-round-body">
+              <tr id="sr-row-1"></tr>
+              <tr id="sr-row-2"></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <!-- Censo y abstención -->
@@ -131,119 +152,103 @@
         </div>
       </div>
 
-    </div><!-- /col-left -->
+    </main><!-- /main-left -->
 
-    <!-- ── SEGUNDA VUELTA (entre votos y resultados) ── -->
-    <div class="col-second-round" style="grid-column:1;grid-row:2;display:none" id="second-round-container">
-      <div class="card">
-        <div class="card-header"><span class="dot"></span>Segunda vuelta</div>
-        <table>
-          <thead>
-            <tr>
-              <th style="width:36px;text-align:center">Color</th>
-              <th>Candidatura</th>
-              <th style="text-align:right">Votos</th>
-              <th style="text-align:right">%</th>
-            </tr>
-          </thead>
-          <tbody id="second-round-body">
-            <tr id="sr-row-1"></tr>
-            <tr id="sr-row-2"></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <!-- ══ MAIN DERECHA: parámetros + resultados ══ -->
+    <main class="main-right">
 
-    <!-- ── RESULTADOS ── -->
-    <div class="col-results">
-      <div id="last-seat-container" style="display:none;margin-bottom:8px">
-        <button id="last-seat-toggle" onclick="toggleLastSeat()"
-          style="width:100%;background:none;color:var(--text-muted);border:none;padding:8px 12px;font-family:'Source Sans 3',sans-serif;font-size:0.8rem;font-weight:600;cursor:pointer;text-align:left;transition:color 0.15s"
-          onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-muted)'">
-          ▼ Mostrar análisis del último <span id="last-seat-word-toggle">escaño</span>
-        </button>
-        <div class="last-seat-info" id="last-seat-info" style="display:none"></div>
-      </div>
-      <div class="card" id="results-card">
-        <div class="card-header">
-          <span class="dot"></span><span id="results-title">Distribución de escaños</span>
-          <span id="formula-tag-display" class="formula-tag" style="margin-left:auto"></span>
-        </div>
-        <table id="results-table">
-          <thead>
-            <tr>
-              <th style="width:40%">Candidatura / Partido</th>
-              <th style="width:14%;text-align:right">Votos</th>
-              <th style="width:10%;text-align:right">% votos</th>
-              <th style="width:26%" id="seats-col-header">Escaños</th>
-              <th style="width:10%;text-align:right" id="seats-pct-header">% esc.</th>
-              <th style="width:8%;text-align:right">Dif. %</th>
-            </tr>
-          </thead>
-          <tbody id="results-body"></tbody>
-        </table>
-      </div>
-    </div><!-- /col-results -->
+      <!-- Parámetros -->
+      <article class="param-area">
+        <div class="param-card">
+          <div class="param-card-header">Parámetros</div>
+          <div class="param-body">
 
-    <!-- ── COLUMNA DERECHA (PARÁMETROS) ── -->
-    <div class="col-right">
-      <div class="param-card">
-        <div class="param-card-header">Parámetros</div>
-        <div class="param-body">
-
-          <div class="param-field">
-            <label id="seats-label-toggle" style="cursor:pointer;user-select:none" onclick="toggleParamField('seats')">▲ Número de escaños</label>
-            <div id="seats-input-wrap">
-              <input type="number" id="seats" value="350" min="1" max="9999" oninput="updateTotals()">
-              <small>Representantes a asignar</small>
-            </div>
-          </div>
-
-          <div class="param-field">
-            <label id="barrier-label-toggle" style="cursor:pointer;user-select:none" onclick="toggleParamField('barrier')">▲ Barrera electoral (%)</label>
-            <div id="barrier-input-wrap">
-              <input type="number" id="barrier" value="3" min="0" max="100" step="0.1" oninput="updateTotals()">
-              <small>Umbral mínimo de votos válidos</small>
-            </div>
-          </div>
-
-          <div class="param-field" id="bonus-field" style="display:none">
-            <label id="bonus-label-toggle" style="cursor:pointer;user-select:none" onclick="toggleParamField('bonus')">▼ Bono mayoría</label>
-            <div id="bonus-input-wrap" style="display:none">
-              <input type="number" id="majority-bonus" value="0" min="0" max="100">
-              <div style="margin-top:8px;display:flex;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;font-size:0.72rem;font-weight:600;letter-spacing:0.03em;">
-                <button id="bonus-btn-included" onclick="setBonusMode('included')" class="bonus-active"
-                  style="flex:1;padding:5px 4px;border:none;cursor:pointer;font-family:'Source Sans 3',sans-serif;font-size:0.72rem;font-weight:600;letter-spacing:0.03em;border-right:1px solid var(--border);transition:background 0.15s,color 0.15s;">
-                  Incluido
-                </button>
-                <button id="bonus-btn-extra" onclick="setBonusMode('extra')"
-                  style="flex:1;padding:5px 4px;border:none;cursor:pointer;font-family:'Source Sans 3',sans-serif;font-size:0.72rem;font-weight:600;letter-spacing:0.03em;transition:background 0.15s,color 0.15s;">
-                  Extra
-                </button>
+            <div class="param-field">
+              <label id="seats-label-toggle" style="cursor:pointer;user-select:none" onclick="toggleParamField('seats')">▲ Número de escaños</label>
+              <div id="seats-input-wrap">
+                <input type="number" id="seats" value="350" min="1" max="9999" oninput="updateTotals()">
+                <small>Representantes a asignar</small>
               </div>
-              <div id="bonus-desc-included" style="margin-top:5px;font-size:0.68rem;color:var(--text-muted);font-style:italic;line-height:1.4;">El bono se descuenta del total: se reparten <em>N−bono</em> <span class="seat-name-ref">escaños</span> y el partido más votado recibe el bono adicional.</div>
-              <div id="bonus-desc-extra"    style="display:none;margin-top:5px;font-size:0.68rem;color:var(--text-muted);font-style:italic;line-height:1.4;">Se reparten los <em>N</em> <span class="seat-name-ref">escaños</span> completos y el partido más votado recibe el bono por encima del total.</div>
-              <input type="hidden" id="bonus-mode-value" value="included">
-              <small id="bonus-seats-label" style="margin-top:4px;display:block;font-size:0.68rem;color:var(--text-muted);font-style:italic;"></small>
             </div>
-          </div>
 
-          <div class="formula-field">
-            <label>Fórmula de reparto</label>
-            <div class="formula-select-wrap">
-              <select id="formula-select" onchange="updateFormulaDesc()"></select>
+            <div class="param-field">
+              <label id="barrier-label-toggle" style="cursor:pointer;user-select:none" onclick="toggleParamField('barrier')">▲ Barrera electoral (%)</label>
+              <div id="barrier-input-wrap">
+                <input type="number" id="barrier" value="3" min="0" max="100" step="0.1" oninput="updateTotals()">
+                <small>Umbral mínimo de votos válidos</small>
+              </div>
             </div>
-            <div class="formula-desc" id="formula-desc"></div>
+
+            <div class="param-field" id="bonus-field" style="display:none">
+              <label id="bonus-label-toggle" style="cursor:pointer;user-select:none" onclick="toggleParamField('bonus')">▼ Bono mayoría</label>
+              <div id="bonus-input-wrap" style="display:none">
+                <input type="number" id="majority-bonus" value="0" min="0" max="100">
+                <div style="margin-top:8px;display:flex;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;font-size:0.72rem;font-weight:600;letter-spacing:0.03em;">
+                  <button id="bonus-btn-included" onclick="setBonusMode('included')" class="bonus-active"
+                    style="flex:1;padding:5px 4px;border:none;cursor:pointer;font-family:'Source Sans 3',sans-serif;font-size:0.72rem;font-weight:600;letter-spacing:0.03em;border-right:1px solid var(--border);transition:background 0.15s,color 0.15s;">
+                    Incluido
+                  </button>
+                  <button id="bonus-btn-extra" onclick="setBonusMode('extra')"
+                    style="flex:1;padding:5px 4px;border:none;cursor:pointer;font-family:'Source Sans 3',sans-serif;font-size:0.72rem;font-weight:600;letter-spacing:0.03em;transition:background 0.15s,color 0.15s;">
+                    Extra
+                  </button>
+                </div>
+                <div id="bonus-desc-included" style="margin-top:5px;font-size:0.68rem;color:var(--text-muted);font-style:italic;line-height:1.4;">El bono se descuenta del total: se reparten <em>N−bono</em> <span class="seat-name-ref">escaños</span> y el partido más votado recibe el bono adicional.</div>
+                <div id="bonus-desc-extra"    style="display:none;margin-top:5px;font-size:0.68rem;color:var(--text-muted);font-style:italic;line-height:1.4;">Se reparten los <em>N</em> <span class="seat-name-ref">escaños</span> completos y el partido más votado recibe el bono por encima del total.</div>
+                <input type="hidden" id="bonus-mode-value" value="included">
+                <small id="bonus-seats-label" style="margin-top:4px;display:block;font-size:0.68rem;color:var(--text-muted);font-style:italic;"></small>
+              </div>
+            </div>
+
+            <div class="formula-field">
+              <label>Fórmula de reparto</label>
+              <div class="formula-select-wrap">
+                <select id="formula-select" onchange="updateFormulaDesc()"></select>
+              </div>
+              <div class="formula-desc" id="formula-desc"></div>
+            </div>
+
+            <button class="calc-btn" onclick="calculate()">▶ Calcular</button>
+
           </div>
-
-          <button class="calc-btn" onclick="calculate()">▶ Calcular</button>
-
         </div>
-      </div>
-    </div><!-- /col-right -->
+      </article><!-- /param-area -->
 
-    <!-- ── DESGLOSE DE COCIENTES ── -->
-    <div class="col-breakdown">
+      <!-- Resultados -->
+      <article class="results-area">
+        <div id="last-seat-container" style="display:none;margin-bottom:8px">
+          <button id="last-seat-toggle" onclick="toggleLastSeat()"
+            style="width:100%;background:none;color:var(--text-muted);border:none;padding:8px 12px;font-family:'Source Sans 3',sans-serif;font-size:0.8rem;font-weight:600;cursor:pointer;text-align:left;transition:color 0.15s"
+            onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-muted)'">
+            ▼ Mostrar análisis del último <span id="last-seat-word-toggle">escaño</span>
+          </button>
+          <div class="last-seat-info" id="last-seat-info" style="display:none"></div>
+        </div>
+        <div class="card" id="results-card">
+          <div class="card-header">
+            <span class="dot"></span><span id="results-title">Distribución de escaños</span>
+            <span id="formula-tag-display" class="formula-tag" style="margin-left:auto"></span>
+          </div>
+          <table id="results-table">
+            <thead>
+              <tr>
+                <th style="width:40%">Candidatura / Partido</th>
+                <th style="width:14%;text-align:right">Votos</th>
+                <th style="width:10%;text-align:right">% votos</th>
+                <th style="width:26%" id="seats-col-header">Escaños</th>
+                <th style="width:10%;text-align:right" id="seats-pct-header">% esc.</th>
+                <th style="width:8%;text-align:right">Dif. %</th>
+              </tr>
+            </thead>
+            <tbody id="results-body"></tbody>
+          </table>
+        </div>
+      </article><!-- /results-area -->
+
+    </main><!-- /main-right -->
+
+    <!-- ══ ASIDE DERECHA: desglose de cocientes ══ -->
+    <aside class="breakdown-aside">
       <div id="breakdown-section" style="display:none">
         <button id="breakdown-toggle" onclick="toggleBreakdown()"
           style="width:100%;background:none;color:var(--text-muted);border:none;padding:8px 12px;font-family:'Source Sans 3',sans-serif;font-size:0.8rem;font-weight:600;cursor:pointer;margin-bottom:8px;text-align:left;transition:color 0.15s">
@@ -259,7 +264,7 @@
           </div>
         </div>
       </div>
-    </div><!-- /col-breakdown -->
+    </aside><!-- /breakdown-aside -->
 
   </div><!-- /workspace -->
   </div><!-- /calculator-tab -->
