@@ -67,7 +67,7 @@ function drawHemicycle() {
   const results = getResults();
   if (!results || results.length === 0) return;
 
-  const container = document.getElementById('hemicycle-svg').parentElement;
+  const container = document.getElementById('hemicycle-svg');
   if (!container) return;
 
   let segmentsContainer = container.querySelector('#hemicycle-segments-container');
@@ -81,7 +81,7 @@ function drawHemicycle() {
       aspect-ratio: 2/1;
       margin: 0 auto;
     `;
-    container.insertBefore(segmentsContainer, container.firstChild);
+    container.appendChild(segmentsContainer);
   }
   segmentsContainer.innerHTML = '';
 
