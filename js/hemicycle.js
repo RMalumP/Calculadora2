@@ -139,13 +139,20 @@ function getResults() {
   tbody.querySelectorAll('tr').forEach(tr => {
     const cells = tr.querySelectorAll('td');
     if (cells.length >= 4) {
-      const name = cells[0]?.textContent?.trim() || '';
-      const seats = parseInt(cells[3]?.textContent?.trim()) || 0;
-      const colorInput = tr.querySelector('input[type=color]');
-      const color = colorInput ? colorInput.value : '#888888';
+      const nameCell = cells[0]?.textContent?.trim() || '';
+      const seatsCell = cells[3];
+      const seatsBadge = seatsCell?.querySelector('.result-badge');
+      const seats = seatsBadge ? parseInt(seatsBadge.textContent?.trim()) || 0 : 0;
 
-      if (name && seats > 0) {
-        results.push({ name, seats, color });
+      const colorSwatch = tr.querySelector('.color-swatch');
+      let color = '#888888';
+      if (colorSwatch) {
+        const bgStyle = window.getComputedStyle(colorSwatch).backgroundColor;
+        color = bgStyle || '#888888';
+      }
+
+      if (nameCell && seats > 0) {
+        results.push({ name: nameCell, seats, color });
       }
     }
   });
