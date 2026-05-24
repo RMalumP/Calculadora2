@@ -166,7 +166,8 @@
 }
 
 /* ── RESULTS TABLE ──────────────────────────────────────────── */
-#results-card { display: none; }
+#results-card { display: none; overflow-x: auto; }
+#results-table { min-width: 480px; }
 
 .result-badge {
   display: inline-flex;
