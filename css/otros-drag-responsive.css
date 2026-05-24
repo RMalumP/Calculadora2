@@ -152,6 +152,8 @@ tr[data-is-otros="true"] td input[type=color] {
 .otros-dropdown-item.manual .otros-item-name-input {
   font-style: italic;
   color: var(--text-muted) !important;
+  width: 100px;
+  flex: 0 0 100px;
 }
 .otros-dropdown-empty {
   padding: 3px 10px;

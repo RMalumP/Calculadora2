@@ -324,14 +324,19 @@ function updateOtrosDropdown() {
     votesInput.setAttribute('inputmode', 'numeric');
     votesInput.className = 'otros-item-votes-input';
     votesInput.value = p.votes > 0 ? p.votes : '';
+    let votesSelected = false;
     votesInput.addEventListener('focus', function () {
       this.type = 'number';
-      if (this.value) this.select();
+      if (this.value && !votesSelected) {
+        this.select();
+        votesSelected = true;
+      }
     });
     votesInput.addEventListener('blur', function () {
       this.type = 'text';
       const num = parseInt(this.value) || 0;
       this.value = num > 0 ? num : '';
+      votesSelected = false;
     });
     votesInput.addEventListener('input', function () {
       otrosAbsorbedParties[idx].votes = parseInt(this.value) || 0;
