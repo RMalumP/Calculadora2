@@ -50,6 +50,9 @@
   box-shadow: 0 0 0 2px rgba(139,31,31,0.2);
 }
 
+/* ── VOTE TABLE SCROLL WRAPPER ──────────────────────────────── */
+.votes-table-scroll { overflow-x: auto; }
+
 /* ── VOTE TABLE ─────────────────────────────────────────────── */
 table { width: 100%; border-collapse: collapse; }
 

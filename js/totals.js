@@ -3,6 +3,10 @@
  * Cálculo de totales de votos, censo y participación.
  */
 
+// Valores reales (sin capear) para cálculos internos
+let _realTotalValid = 0;
+let _realTotalAll   = 0;
+
 function updateTotals() {
   const rows = getAllPartyRows();
   let sumParty = 0;
@@ -19,6 +23,11 @@ function updateTotals() {
   const totalValid = sumParty + blank;
   const totalAll   = totalValid + nullv;
 
+  // Guardar valores reales para que los cálculos de censo/participación sean correctos
+  _realTotalValid = totalValid;
+  _realTotalAll   = totalAll;
+
+  // Mostrar valores reales temporalmente para que updateParticipation los lea bien
   document.getElementById('total-valid').textContent = totalValid.toLocaleString('es-ES');
   document.getElementById('total-all').textContent   = totalAll.toLocaleString('es-ES');
 
@@ -51,6 +60,11 @@ function updateTotals() {
 
   document.getElementById('blank-pct').innerHTML = totalValid > 0 ? pctBar(blank / totalValid * 100) : '—';
   document.getElementById('null-pct').innerHTML  = totalAll  > 0 ? pctBar(nullv / totalAll  * 100) : '—';
+
+  // Tope máximo en totals-strip: max votos por fila × nº filas de partido (incluye "otros")
+  const maxTotal = 9000000000 * rows.length;
+  document.getElementById('total-valid').textContent = Math.min(totalValid, maxTotal).toLocaleString('es-ES');
+  document.getElementById('total-all').textContent   = Math.min(totalAll,   maxTotal).toLocaleString('es-ES');
 }
 
 function updateCensus(source) {
@@ -99,7 +113,7 @@ function pctBar(pct) {
   return `${pct.toFixed(2)}%`;
 }
 
-/* Helper: lee el total de votos válidos del DOM */
+/* Helper: devuelve el total real de votos válidos */
 function _parseTotalValid() {
-  return parseFloat(document.getElementById('total-valid').textContent.replace(/\./g,'').replace(/,/g,'')) || 0;
+  return _realTotalValid;
 }
