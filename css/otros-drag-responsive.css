@@ -29,16 +29,6 @@
   padding: 4px 0;
   width: 100%;
 }
-.otros-dropdown-title {
-  padding: 3px 10px 5px;
-  font-size: 0.66rem;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--text-muted);
-  font-weight: 600;
-  border-bottom: 1px solid var(--border-light);
-  margin-bottom: 3px;
-}
 .otros-dropdown-item {
   display: flex;
   align-items: center;

@@ -3,23 +3,31 @@
  * Algoritmos de reparto de escaños: D'Hondt, Sainte-Laguë, cuotas, mayoritarios.
  */
 
-/**
- * Punto de entrada: despacha al algoritmo correcto según la fórmula.
- */
+/** Devuelve la función divisora para métodos de media más alta. */
+function getDivFn(formula) {
+  switch (formula) {
+    case 'saintlague':   return s => 2 * s + 1;
+    case 'saintlague_m': return s => s === 0 ? 1.4 : 2 * s + 1;
+    case 'highest_avg':  return s => s === 0 ? 1e-10 : s;
+    default:             return s => s + 1;
+  }
+}
+
+/** Punto de entrada: despacha al algoritmo correcto según la fórmula. */
 function allocateSeats(parties, totalSeats, formula) {
   if (!parties.length || totalSeats === 0) return parties.map(p => ({ ...p, seats: 0 }));
   switch (formula) {
-    case 'dhondt':          return highestAverage(parties, totalSeats, i => i + 1);
+    case 'dhondt':
+    case 'highest_avg':
+    case 'saintlague':
+    case 'saintlague_m':    return highestAverage(parties, totalSeats, getDivFn(formula));
     case 'hare':            return largestRemainder(parties, totalSeats, v => v / totalSeats);
     case 'imperiali':       return largestRemainder(parties, totalSeats, v => v / (totalSeats + 2));
-    case 'droop':           return largestRemainder(parties, totalSeats, v => v / (totalSeats + 1));
+    case 'droop':
     case 'hb':              return largestRemainder(parties, totalSeats, v => v / (totalSeats + 1));
-    case 'highest_avg':     return highestAverage(parties, totalSeats, i => i === 0 ? 1e-10 : i);
-    case 'saintlague':      return highestAverage(parties, totalSeats, i => 2 * i + 1);
-    case 'saintlague_m':    return highestAverageMod(parties, totalSeats);
     case 'majority':        return majority(parties, totalSeats);
     case 'majority_round2': return majorityRound2(totalSeats);
-    default:                return highestAverage(parties, totalSeats, i => i + 1);
+    default:                return highestAverage(parties, totalSeats, getDivFn('dhondt'));
   }
 }
 
@@ -37,28 +45,6 @@ function highestAverage(parties, totalSeats, divFn) {
     if (best >= 0) {
       seats[best]++;
       allocations.push({ party: best, partyName: parties[best].name, quotient: bestQ, votes: parties[best].votes, seatNumber: seats[best] });
-    }
-  }
-
-  _storeLastSeatInfo(parties, seats, allocations, divFn, totalSeats);
-  return parties.map((p, i) => ({ ...p, seats: seats[i] }));
-}
-
-/** Sainte-Laguë modificada (primer divisor 1.4) */
-function highestAverageMod(parties, totalSeats) {
-  const divFn = s => s === 0 ? 1.4 : 2 * s + 1;
-  const seats = parties.map(() => 0);
-  const allocations = [];
-
-  for (let s = 0; s < totalSeats; s++) {
-    let best = -1, bestQ = -Infinity;
-    parties.forEach((p, i) => {
-      const q = p.votes / divFn(seats[i]);
-      if (q > bestQ) { bestQ = q; best = i; }
-    });
-    if (best >= 0) {
-      seats[best]++;
-      allocations.push({ party: best, partyName: parties[best].name, quotient: bestQ, votes: parties[best].votes });
     }
   }
 
@@ -158,7 +144,7 @@ function majorityRound2(totalSeats) {
 }
 
 /** Aplica el bono de mayoría al partido más votado */
-function applyBonus(allocated, bonus, totalSeats, mode) {
+function applyBonus(allocated, bonus) {
   if (bonus <= 0 || !allocated.length) return;
   const winner = allocated.reduce((max, p) =>
     p.votes > max.votes || (p.votes === max.votes && p.seats > max.seats) ? p : max

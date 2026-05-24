@@ -25,7 +25,6 @@ function toggleSiglasVisibility() {
     }
   });
 
-  // Segunda vuelta
   document.querySelectorAll('#second-round-body .sr-siglas-prefix').forEach(el => {
     const s = el.dataset.siglas || '';
     el.style.display = (siglasVisible && s) ? '' : 'none';
@@ -58,7 +57,6 @@ function toggleHideNames() {
   const btn = document.getElementById('hide-names-btn');
   if (btn) btn.textContent = namesHidden ? 'Mostrar nombre' : 'Ocultar nombre';
 
-  // Tabla de votos: solo cambiar color, el nombre sigue visible
   document.querySelectorAll('#votes-body .name-input').forEach(inp => {
     if (namesHidden) {
       inp.classList.add('names-hidden-mode');
@@ -69,18 +67,15 @@ function toggleHideNames() {
     }
   });
 
-  // Tabla de escaños: ocultar/mostrar el nombre del partido
   document.querySelectorAll('.result-party-name').forEach(el => {
     el.style.display = namesHidden ? 'none' : '';
   });
 
-  // Guión del prefijo siglas: desaparece cuando el nombre está oculto
   document.querySelectorAll('.result-siglas-prefix').forEach(el => {
     const s = el.dataset.siglas || '';
     el.textContent = s + (namesHidden ? '' : '-');
   });
 
-  // Segunda vuelta
   document.querySelectorAll('#second-round-body .sr-name-input').forEach(inp => {
     inp.style.display = namesHidden ? 'none' : '';
   });
@@ -180,8 +175,7 @@ function updateSeatNames() {
   const val = document.getElementById('seat-rename').value;
   currentSeatName = val;
   const cap = val.charAt(0).toUpperCase() + val.slice(1);
-  const singularMap = { 'escaños':'escaño', 'parlamentarios':'parlamentario', 'diputados':'diputado', 'concejales':'concejal', 'congresistas':'congresista' };
-  const singular = singularMap[val] ?? val.slice(0, -1);
+  const singular = SINGULAR_MAP[val] ?? val.slice(0, -1);
 
   const seatsLabel = document.getElementById('seats-label-toggle');
   seatsLabel.textContent = `${seatsLabel.textContent.startsWith('▲') ? '▲ ' : '▼ '}Número de ${val}`;
@@ -224,8 +218,7 @@ function toggleLastSeat() {
   const inner = document.getElementById('last-seat-info');
   const btn   = document.getElementById('last-seat-toggle');
   const open  = inner.style.display === 'block';
-  const singularMap = { 'escaños':'escaño', 'parlamentarios':'parlamentario', 'diputados':'diputado', 'concejales':'concejal', 'congresistas':'congresista' };
-  const singular = singularMap[currentSeatName] ?? currentSeatName.slice(0, -1);
+  const singular = SINGULAR_MAP[currentSeatName] ?? currentSeatName.slice(0, -1);
   inner.style.display = open ? 'none' : 'block';
   btn.innerHTML = open
     ? `▼ Mostrar análisis del último <span id="last-seat-word-toggle">${singular}</span>`

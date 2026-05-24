@@ -23,3 +23,12 @@ const PALETTE = [
   '#16a085','#f39c12','#2c3e50','#e74c3c','#3498db',
   '#1abc9c','#9b59b6','#e67e22','#34495e','#d35400'
 ];
+
+// Mapa singular para los nombres de tipo de escaño
+const SINGULAR_MAP = {
+  'escaños':       'escaño',
+  'parlamentarios':'parlamentario',
+  'diputados':     'diputado',
+  'concejales':    'concejal',
+  'congresistas':  'congresista'
+};

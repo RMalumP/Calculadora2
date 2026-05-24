@@ -5,6 +5,34 @@
 
 let currentSeatName = 'escaños';
 
+/* ── Helper: asignar nombres automáticos a filas sin nombre ── */
+
+function _assignPartyNames(rows) {
+  const existing = new Set();
+  rows.forEach(tr => {
+    if (tr.dataset.isOtros) return;
+    const n = tr.querySelector('.name-input')?.value.trim();
+    if (n) existing.add(n);
+  });
+
+  let counter = 1;
+  while (existing.has('Partido ' + toRoman(counter))) counter++;
+
+  rows.forEach(tr => {
+    if (tr.dataset.isOtros) return;
+    const nameInput = tr.querySelector('.name-input');
+    if (!nameInput || nameInput.value.trim()) return;
+    if (!parseVoteValue(tr.querySelector('.votes-input')?.value)) return;
+    const roman = toRoman(counter);
+    nameInput.value = 'Partido ' + roman;
+    const siglasInp = tr.querySelector('.siglas-input');
+    if (siglasInp && !siglasInp.value.trim()) siglasInp.value = roman;
+    existing.add('Partido ' + roman);
+    counter++;
+    while (existing.has('Partido ' + toRoman(counter))) counter++;
+  });
+}
+
 /* ── CÁLCULO PRINCIPAL ─────────────────────────────────────── */
 
 function calculate() {
@@ -13,54 +41,36 @@ function calculate() {
 
   // Segunda vuelta: flujo simplificado sin lógica de absorción
   if (formula === 'majority_round2') {
-    const totalSeats     = parseInt(document.getElementById('seats').value) || 350;
-    const bonus          = parseInt(document.getElementById('majority-bonus').value) || 0;
-    const bonusMode      = getBonusMode();
+    const totalSeats      = parseInt(document.getElementById('seats').value) || 350;
+    const bonus           = parseInt(document.getElementById('majority-bonus').value) || 0;
+    const bonusMode       = getBonusMode();
     const seatsToAllocate = bonusMode === 'included' ? totalSeats - bonus : totalSeats;
-    const allocated      = majorityRound2(seatsToAllocate);
-    const totalValid     = allocated.reduce((s, p) => s + p.votes, 0);
-    applyBonus(allocated, bonus, totalSeats, bonusMode);
+    const allocated       = majorityRound2(seatsToAllocate);
+    const totalValid      = allocated.reduce((s, p) => s + p.votes, 0);
+    applyBonus(allocated, bonus);
     displayResults(allocated, totalValid, totalSeats, formula, [], [], allocated);
     return;
   }
 
   // ── PASO 1: Recoger filas normales ──
-  const allRows   = getAllPartyRows();
-  const otrosRow  = getOrCreateOtrosRow();
-  const otrosVotesInput  = otrosRow.querySelector('input[data-otros-main]');
+  const allRows = getAllPartyRows();
+  _assignPartyNames(allRows);
+
+  const otrosRow        = getOrCreateOtrosRow();
+  const otrosVotesInput = otrosRow.querySelector('input[data-otros-main]');
   const otrosManualVotes = parseVoteValue(otrosVotesInput?.value);
   const blank = parseVoteValue(document.getElementById('blank-votes').value);
 
-  const existingNames = new Set();
-  allRows.forEach(tr => {
-    if (tr.dataset.isOtros) return;
-    const name = tr.querySelector('.name-input')?.value.trim();
-    if (name) existingNames.add(name);
-  });
-
-  let unnamedCounter = 1;
-  while (existingNames.has('Partido ' + toRoman(unnamedCounter))) unnamedCounter++;
-
-  const normalParties = [];
-  allRows.forEach(tr => {
-    if (tr.dataset.isOtros) return;
-    let name     = tr.querySelector('.name-input')?.value.trim() || '';
-    let siglas   = tr.querySelector('.siglas-input')?.value.trim() || '';
-    const votes  = parseVoteValue(tr.querySelector('.votes-input')?.value);
-    const color  = tr.querySelector('input[type=color]')?.value || '#888888';
-    if (!name && votes === 0) return;
-    if (!name && votes > 0) {
-      const roman = toRoman(unnamedCounter);
-      name = 'Partido ' + roman;
-      tr.querySelector('.name-input').value = name;
-      const siglasInp = tr.querySelector('.siglas-input');
-      if (siglasInp && !siglasInp.value.trim()) { siglasInp.value = roman; siglas = roman; }
-      existingNames.add(name);
-      unnamedCounter++;
-      while (existingNames.has('Partido ' + toRoman(unnamedCounter))) unnamedCounter++;
-    }
-    normalParties.push({ name, siglas, votes, color, tr });
-  });
+  const normalParties = allRows
+    .filter(tr => !tr.dataset.isOtros)
+    .map(tr => ({
+      name:   tr.querySelector('.name-input')?.value.trim() || '',
+      siglas: tr.querySelector('.siglas-input')?.value.trim() || '',
+      votes:  parseVoteValue(tr.querySelector('.votes-input')?.value),
+      color:  tr.querySelector('input[type=color]')?.value || '#888888',
+      tr
+    }))
+    .filter(p => p.name || p.votes > 0);
 
   // ── PASO 2: Total válido ──
   let totalValid = normalParties.reduce((s, p) => s + p.votes, 0) + otrosManualVotes + blank;
@@ -82,7 +92,7 @@ function calculate() {
     eligible.map(p => ({ name: p.name, siglas: p.siglas, votes: p.votes, color: p.color })),
     seatsToAllocate, formula
   );
-  applyBonus(allocated, bonus, totalSeats, bonusMode);
+  applyBonus(allocated, bonus);
 
   // ── PASO 4: Identificar partidos minoritarios a absorber ──
   const allocatedSeatsMap = new Map(allocated.map(p => [p.name, p.seats]));
@@ -133,7 +143,7 @@ function calculate() {
     eligible2.map(p => ({ name: p.name, siglas: p.siglas, votes: p.votes, color: p.color })),
     seatsToAllocate, formula
   );
-  applyBonus(allocated, bonus, totalSeats, bonusMode);
+  applyBonus(allocated, bonus);
 
   excludedBarrier2.forEach(p => allocated.push({ ...p, seats: 0, excludedBarrier: true }));
   noVotes2.forEach(p => allocated.push({ ...p, seats: 0, noVotes: true }));
@@ -212,7 +222,7 @@ function displayResults(allocated, totalValid, totalSeats, formula, excludedBarr
 
 function highlightInputTable(allocated, formula) {
   const inputRows = getPartyRows();
-  inputRows.forEach(tr => tr.classList.remove('no-seats', 'barrier-blocked', 'second-round-loser'));
+  inputRows.forEach(tr => tr.classList.remove('no-seats', 'barrier-blocked'));
 
   if (formula === 'majority_round2') {
     const srNames = new Set([...document.querySelectorAll('#second-round-body tr')]
@@ -248,20 +258,13 @@ function displayLastSeatInfo() {
     return;
   }
 
-  const singularMap = { 'escaños':'escaño', 'parlamentarios':'parlamentario', 'diputados':'diputado', 'concejales':'concejal', 'congresistas':'congresista' };
-  const seatWord = singularMap[currentSeatName] ?? currentSeatName.slice(0, -1);
+  const seatWord = SINGULAR_MAP[currentSeatName] ?? currentSeatName.slice(0, -1);
   let diffText = '';
 
   const isHighestAvg = ['dhondt','highest_avg','saintlague','saintlague_m'].includes(formula);
 
   if (isHighestAvg) {
-    let divFn;
-    switch (formula) {
-      case 'saintlague':   divFn = i => 2 * i + 1; break;
-      case 'saintlague_m': divFn = i => i === 0 ? 1.4 : 2 * i + 1; break;
-      case 'highest_avg':  divFn = i => i === 0 ? 1e-10 : i; break;
-      default:             divFn = i => i + 1;
-    }
+    const divFn = getDivFn(formula);
     const loserDiv = divFn(info.loser.currentSeats ?? 0);
     const votosNecesarios = Math.floor(info.winnerQuotient * loserDiv) + 1;
     const votosFaltan = votosNecesarios - info.loser.votes;
@@ -293,13 +296,7 @@ function buildBreakdownTable(parties, allocated, totalSeats, formula) {
   const eligibleParties = parties.filter(p => eligibleNames.has(p.name));
   if (!eligibleParties.length) { section.style.display = 'none'; return; }
 
-  let divFn;
-  switch (formula) {
-    case 'saintlague':   divFn = i => 2 * i + 1; break;
-    case 'saintlague_m': divFn = i => i === 0 ? 1.4 : 2 * i + 1; break;
-    default:             divFn = i => i + 1;
-  }
-
+  const divFn = getDivFn(formula);
   const maxSeats = Math.max(...eligibleParties.map(p => allocated.find(a => a.name === p.name)?.seats || 0));
   const numCols  = maxSeats + 3;
 
@@ -347,35 +344,17 @@ function buildBreakdownTable(parties, allocated, totalSeats, formula) {
 
 function prepareSecondRound() {
   const rows = getPartyRows();
-  const existingNames = new Set();
-  rows.forEach(tr => {
-    if (tr.dataset.isOtros) return;
-    const name = tr.querySelector('.name-input')?.value.trim();
-    if (name) existingNames.add(name);
-  });
+  _assignPartyNames(rows);
 
-  let unnamedCounter = 1;
-  while (existingNames.has('Partido ' + toRoman(unnamedCounter))) unnamedCounter++;
-
-  const parties = [];
-  rows.forEach(tr => {
-    if (tr.dataset.isOtros) return;
-    let name   = tr.querySelector('.name-input')?.value.trim() || '';
-    const votes = parseVoteValue(tr.querySelector('.votes-input')?.value);
-    const color = tr.querySelector('input[type=color]')?.value || '#888888';
-    if (!name && votes > 0) {
-      const roman = toRoman(unnamedCounter);
-      name = 'Partido ' + roman;
-      tr.querySelector('.name-input').value = name;
-      const siglasInp = tr.querySelector('.siglas-input');
-      if (siglasInp && !siglasInp.value.trim()) siglasInp.value = roman;
-      existingNames.add(name);
-      unnamedCounter++;
-      while (existingNames.has('Partido ' + toRoman(unnamedCounter))) unnamedCounter++;
-    }
-    const siglas = tr.querySelector('.siglas-input')?.value.trim() || '';
-    if (name && votes > 0) parties.push({ name, siglas, votes, color });
-  });
+  const parties = rows
+    .filter(tr => !tr.dataset.isOtros)
+    .map(tr => ({
+      name:   tr.querySelector('.name-input')?.value.trim() || '',
+      siglas: tr.querySelector('.siglas-input')?.value.trim() || '',
+      votes:  parseVoteValue(tr.querySelector('.votes-input')?.value),
+      color:  tr.querySelector('input[type=color]')?.value || '#888888'
+    }))
+    .filter(p => p.name && p.votes > 0);
 
   parties.sort((a, b) => b.votes - a.votes);
   const total = parties.slice(0, 2).reduce((s, p) => s + p.votes, 0);
