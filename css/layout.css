@@ -31,10 +31,12 @@
 }
 
 .param-area {
-  max-width: 140px;
+  width: 100%;
 }
 
 .results-area {
+  width: 100%;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;

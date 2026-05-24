@@ -16,7 +16,7 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
-.param-body { padding: 10px; display: flex; flex-direction: column; gap: 14px; }
+.param-body { padding: 14px; display: flex; flex-direction: column; gap: 14px; }
 
 .param-field label {
   display: block;
