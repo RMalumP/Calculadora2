@@ -75,113 +75,90 @@ function drawHemicycle() {
 
   container.innerHTML = '';
 
-  const width = 350;
-  const height = 175;
-  const centerX = width / 2;
-  const centerY = height;
-  const radius = height;
-
-  const ul = document.createElement('ul');
-  ul.className = 'hemicycle-chart';
-  ul.style.cssText = `
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = `
     position: relative;
-    width: ${width}px;
-    height: ${height}px;
+    width: 350px;
+    height: 175px;
     margin: 0 auto;
-    padding: 0;
-    list-style: none;
   `;
 
-  let startAngle = 180;
-  results.forEach((result, idx) => {
+  const ul = document.createElement('ul');
+  ul.style.cssText = `
+    position: relative;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: row;
+  `;
+
+  results.forEach(result => {
     const percentWidth = (result.seats / totalSeats) * 100;
-    const angleSpan = (result.seats / totalSeats) * 180;
-    const endAngle = startAngle - angleSpan;
-
-    const startRad = (startAngle * Math.PI) / 180;
-    const endRad = (endAngle * Math.PI) / 180;
-
-    const x1 = centerX + radius * Math.cos(startRad);
-    const y1 = centerY + radius * Math.sin(startRad);
-    const x2 = centerX + radius * Math.cos(endRad);
-    const y2 = centerY + radius * Math.sin(endRad);
-
-    const clipPath = `polygon(50% 100%, ${(x1/width)*100}% ${(y1/height)*100}%, ${(x2/width)*100}% ${(y2/height)*100}%)`;
 
     const li = document.createElement('li');
     li.style.cssText = `
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+      flex: ${result.seats};
       background-color: ${result.color};
+      border-right: 1px solid rgba(255,255,255,0.5);
+      border-top-left-radius: ${percentWidth < 15 ? 0 : 175}px;
+      border-top-right-radius: ${percentWidth < 15 ? 0 : 175}px;
       cursor: default;
       transition: opacity 0.2s;
-      clip-path: ${clipPath};
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
     `;
     li.title = `${result.name}: ${result.seats} escaños`;
 
     const span = document.createElement('span');
     span.textContent = `${result.name}`;
     span.style.cssText = `
-      position: absolute;
-      font-size: 0.75rem;
+      font-size: 0.7rem;
       font-weight: 600;
       color: white;
-      text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+      text-shadow: 0 1px 2px rgba(0,0,0,0.4);
       text-align: center;
       white-space: nowrap;
-      transform: translate(-50%, -50%);
+      padding-bottom: 12px;
+      z-index: 2;
     `;
-
-    const midAngle = ((startAngle + endAngle) / 2 * Math.PI) / 180;
-    const labelRadius = radius * 0.6;
-    const labelX = centerX + labelRadius * Math.cos(midAngle);
-    const labelY = centerY + labelRadius * Math.sin(midAngle);
-    span.style.left = labelX + 'px';
-    span.style.top = labelY + 'px';
 
     li.appendChild(span);
 
     li.addEventListener('mouseenter', () => {
-      li.style.opacity = '0.8';
+      li.style.opacity = '0.85';
     });
     li.addEventListener('mouseleave', () => {
       li.style.opacity = '1';
     });
 
     ul.appendChild(li);
-    startAngle = endAngle;
   });
 
-  const before = document.createElement('div');
-  before.style.cssText = `
+  const overlay = document.createElement('div');
+  overlay.style.cssText = `
     position: absolute;
-    width: ${width}px;
-    height: ${height}px;
     top: 0;
     left: 50%;
     transform: translateX(-50%);
-    border: 45px solid rgba(211, 211, 211, 0.2);
+    width: 350px;
+    height: 175px;
+    border: 45px solid rgba(211, 211, 211, 0.25);
     border-bottom: none;
-    border-top-left-radius: ${height}px;
-    border-top-right-radius: ${height}px;
+    border-top-left-radius: 175px;
+    border-top-right-radius: 175px;
     box-sizing: border-box;
     pointer-events: none;
     z-index: 10;
   `;
 
-  const wrapper = document.createElement('div');
-  wrapper.style.cssText = `
-    position: relative;
-    display: inline-block;
-    width: 100%;
-  `;
-
   wrapper.appendChild(ul);
-  wrapper.appendChild(before);
-
+  wrapper.appendChild(overlay);
   container.appendChild(wrapper);
 }
 
