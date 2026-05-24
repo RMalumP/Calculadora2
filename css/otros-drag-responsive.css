@@ -170,6 +170,96 @@ tr.drag-over-below       { border-bottom: 2px solid var(--accent) !important; }
   #votes-table { min-width: 430px; width: 100%; }
 }
 
+/* ── HEMICICLO – VENTANA FLOTANTE ───────────────────────────── */
+.hemicycle-window {
+  position: fixed;
+  top: 140px;
+  right: 40px;
+  width: 420px;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 28px rgba(0,0,0,.14);
+  z-index: 1000;
+}
+.hemicycle-window-header {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: var(--text);
+  cursor: grab;
+  user-select: none;
+  background: var(--accent-bg);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.hemicycle-window-header:active { cursor: grabbing; }
+
+/* ── HEMICICLO – DONUT SEMICÍRCULO ──────────────────────────── */
+.hemicycle-donut {
+  margin: 0 auto;
+  padding: 0;
+  list-style-type: none;
+  box-sizing: border-box;
+  position: relative;
+  width: 350px;
+  height: 175px;
+  overflow: hidden;
+}
+
+.hemicycle-donut *,
+.hemicycle-donut::before { box-sizing: border-box; }
+
+.hemicycle-donut::before {
+  content: '';
+  position: absolute;
+  width: 350px;
+  height: 175px;
+  border: 45px solid rgba(211,211,211,.35);
+  border-bottom: none;
+  border-top-left-radius:  175px;
+  border-top-right-radius: 175px;
+}
+
+.hemicycle-donut li {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 350px;
+  height: 175px;
+  border: 45px solid;
+  border-top: none;
+  border-bottom-left-radius:  175px;
+  border-bottom-right-radius: 175px;
+  transform-origin: 50% 0;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  animation-fill-mode: forwards;
+  animation-duration: 0.35s;
+  animation-timing-function: linear;
+}
+
+.hemicycle-donut li span {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: white;
+  text-shadow: 0 1px 3px rgba(0,0,0,.5);
+  backface-visibility: hidden;
+  animation: hemi-fade-in 0.35s linear forwards;
+  white-space: nowrap;
+}
+
+@keyframes hemi-fade-in {
+  0%, 85% { opacity: 0; }
+  100%     { opacity: 1; }
+}
+
 /* ── MOBILE (≤ 700 px) ──────────────────────────────────────── */
 @media (max-width: 700px) {
   header {

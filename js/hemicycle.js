@@ -1,202 +1,162 @@
 /**
- * hemicycle.js
- * Visualización del hemiciclo usando conic-gradient
+ * hemicycle.js – Representación visual usando técnica de rotación de bordes
  */
 
 let _hemicycleDragStart = null;
 let _hemicycleOffset = { x: 0, y: 0 };
 
 function toggleHemicycleVisual() {
-  const window = document.getElementById('hemicycle-window');
-  const button = document.getElementById('hemicycle-toggle');
-
-  if (window.style.display === 'none') {
-    window.style.display = 'block';
-    button.textContent = '▲ Representación visual';
+  const win = document.getElementById('hemicycle-window');
+  const btn = document.getElementById('hemicycle-toggle');
+  if (win.style.display === 'none') {
+    win.style.display = 'block';
+    btn.textContent = '▲ Representación visual';
     drawHemicycle();
   } else {
-    window.style.display = 'none';
-    button.textContent = '▼ Representación visual';
+    win.style.display = 'none';
+    btn.textContent = '▼ Representación visual';
   }
 }
 
 function closeHemicycleWindow() {
-  const window = document.getElementById('hemicycle-window');
-  const button = document.getElementById('hemicycle-toggle');
-  window.style.display = 'none';
-  button.textContent = '▼ Representación visual';
+  document.getElementById('hemicycle-window').style.display = 'none';
+  document.getElementById('hemicycle-toggle').textContent = '▼ Representación visual';
 }
 
 function makeHemicycleDraggable() {
-  const hemicycleWindow = document.getElementById('hemicycle-window');
+  const win    = document.getElementById('hemicycle-window');
   const header = document.getElementById('hemicycle-header');
+  if (!win || !header) return;
 
-  header.addEventListener('mousedown', (e) => {
-    _hemicycleDragStart = { x: e.clientX, y: e.clientY };
-    const rect = hemicycleWindow.getBoundingClientRect();
-    _hemicycleOffset = {
-      x: rect.left - e.clientX,
-      y: rect.top - e.clientY
-    };
-
-    document.addEventListener('mousemove', dragHemicycle);
-    document.addEventListener('mouseup', stopDragHemicycle);
+  header.addEventListener('mousedown', e => {
+    if (e.target.tagName === 'BUTTON') return;
+    const rect = win.getBoundingClientRect();
+    _hemicycleOffset = { x: rect.left - e.clientX, y: rect.top - e.clientY };
+    _hemicycleDragStart = true;
+    document.addEventListener('mousemove', _onHemicycleMove);
+    document.addEventListener('mouseup',   _onHemicycleUp);
   });
 }
 
-function dragHemicycle(e) {
+function _onHemicycleMove(e) {
   if (!_hemicycleDragStart) return;
-
-  const hemicycleWindow = document.getElementById('hemicycle-window');
-  const newX = e.clientX + _hemicycleOffset.x;
-  const newY = e.clientY + _hemicycleOffset.y;
-
-  hemicycleWindow.style.position = 'fixed';
-  hemicycleWindow.style.left = newX + 'px';
-  hemicycleWindow.style.top = newY + 'px';
-  hemicycleWindow.style.right = 'auto';
+  const win = document.getElementById('hemicycle-window');
+  win.style.left  = (e.clientX + _hemicycleOffset.x) + 'px';
+  win.style.top   = (e.clientY + _hemicycleOffset.y) + 'px';
+  win.style.right = 'auto';
 }
 
-function stopDragHemicycle() {
-  _hemicycleDragStart = null;
-  document.removeEventListener('mousemove', dragHemicycle);
-  document.removeEventListener('mouseup', stopDragHemicycle);
+function _onHemicycleUp() {
+  _hemicycleDragStart = false;
+  document.removeEventListener('mousemove', _onHemicycleMove);
+  document.removeEventListener('mouseup',   _onHemicycleUp);
 }
+
+/* ── DIBUJO DEL HEMICICLO ──────────────────────────────────────── */
 
 function drawHemicycle() {
   const results = getResults();
-  if (!results || results.length === 0) return;
-
-  const chart = document.getElementById('hemicycle-chart');
+  const chart   = document.getElementById('hemicycle-chart');
   chart.innerHTML = '';
 
-  const totalSeats = results.reduce((sum, r) => sum + r.seats, 0);
-  if (totalSeats === 0) return;
+  const totalSeats = results.reduce((s, r) => s + r.seats, 0);
+  if (!results.length || totalSeats === 0) {
+    chart.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem;text-align:center">Sin datos</p>';
+    return;
+  }
 
-  const hemicycle = document.createElement('div');
-  hemicycle.style.cssText = `
-    width: 100%;
-    aspect-ratio: 2 / 1;
-    border-radius: 50% / 100% 100% 0 0;
-    position: relative;
-    overflow: hidden;
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
-  `;
-
-  let conicStops = [];
-  let currentPercentage = 0;
-
-  results.forEach(result => {
-    const seatPercentage = (result.seats / totalSeats) * 100;
-    const startPercent = currentPercentage;
-    const endPercent = currentPercentage + seatPercentage;
-
-    conicStops.push(`${result.color} ${startPercent}% ${endPercent}%`);
-    currentPercentage = endPercent;
+  /* Calcular ángulos acumulativos */
+  let cumDeg = 0;
+  const segments = results.map(r => {
+    const deg      = (r.seats / totalSeats) * 180;
+    const startDeg = cumDeg;
+    const endDeg   = cumDeg + deg;
+    cumDeg = endDeg;
+    return { ...r, startDeg, endDeg, deg };
   });
 
-  const conicGradient = `conic-gradient(from 180deg at 50% 100%, ${conicStops.join(', ')})`;
+  /* Inyectar @keyframes dinámicos */
+  let css = '';
+  segments.forEach((seg, i) => {
+    css += `
+      @keyframes hemi-rot-${i} {
+        0%   { transform: rotate(${seg.startDeg}deg); }
+        100% { transform: rotate(${seg.endDeg}deg); }
+      }`;
+  });
 
-  const gradientLayer = document.createElement('div');
-  gradientLayer.style.cssText = `
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: ${conicGradient};
-    mask: radial-gradient(circle at 50% 100%, white 0%, white 60%, transparent 60.1%);
-    -webkit-mask: radial-gradient(circle at 50% 100%, white 0%, white 60%, transparent 60.1%);
-    mask-mode: alpha;
-    -webkit-mask-mode: alpha;
-  `;
+  let styleEl = document.getElementById('hemicycle-keyframes');
+  if (!styleEl) {
+    styleEl = document.createElement('style');
+    styleEl.id = 'hemicycle-keyframes';
+    document.head.appendChild(styleEl);
+  }
+  styleEl.textContent = css;
 
-  hemicycle.appendChild(gradientLayer);
+  /* Crear <ul class="hemicycle-donut"> */
+  const ul = document.createElement('ul');
+  ul.className = 'hemicycle-donut';
 
+  segments.forEach((seg, i) => {
+    const li = document.createElement('li');
+    li.style.cssText = `
+      z-index: ${segments.length - i};
+      border-color: ${seg.color};
+      animation-name: hemi-rot-${i};
+      animation-delay: ${i * 0.3}s;
+    `;
+
+    const span = document.createElement('span');
+    span.textContent = seg.name;
+    span.style.cssText = `
+      transform: rotate(-${seg.endDeg}deg);
+      animation-delay: ${i * 0.3}s;
+    `;
+    li.appendChild(span);
+    ul.appendChild(li);
+  });
+
+  /* Leyenda debajo */
   const legend = document.createElement('div');
   legend.style.cssText = `
-    width: 100%;
-    margin-top: 20px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-    justify-content: center;
+    display:flex; flex-wrap:wrap; gap:8px 14px; justify-content:center;
+    margin-top:14px; font-size:0.78rem;
   `;
-
-  results.forEach(result => {
+  segments.forEach(seg => {
     const item = document.createElement('div');
-    item.style.cssText = `
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 0.8rem;
-    `;
-
-    const swatch = document.createElement('div');
-    swatch.style.cssText = `
-      width: 16px;
-      height: 16px;
-      background-color: ${result.color};
-      border-radius: 2px;
-      border: 1px solid rgba(0,0,0,0.1);
-    `;
-
-    const label = document.createElement('span');
-    label.textContent = `${result.name}: ${result.seats} esc.`;
-    label.style.cssText = `
-      color: var(--text);
-      font-weight: 500;
-    `;
-
-    item.appendChild(swatch);
-    item.appendChild(label);
+    item.style.cssText = 'display:flex;align-items:center;gap:5px';
+    item.innerHTML = `
+      <span style="display:inline-block;width:12px;height:12px;background:${seg.color};border-radius:2px;border:1px solid rgba(0,0,0,.15)"></span>
+      <span style="color:var(--text)">${seg.name} <strong>${seg.seats}</strong></span>`;
     legend.appendChild(item);
   });
 
-  chart.appendChild(hemicycle);
+  chart.appendChild(ul);
   chart.appendChild(legend);
 }
+
+/* ── LECTURA DE RESULTADOS ─────────────────────────────────────── */
 
 function getResults() {
   const tbody = document.getElementById('results-body');
   if (!tbody) return [];
-
   const results = [];
   tbody.querySelectorAll('tr').forEach(tr => {
-    const cells = tr.querySelectorAll('td');
-    if (cells.length >= 4) {
-      const nameCell = cells[0]?.textContent?.trim() || '';
-      const seatsCell = cells[3];
-      const seatsBadge = seatsCell?.querySelector('.result-badge');
-      const seats = seatsBadge ? parseInt(seatsBadge.textContent?.trim()) || 0 : 0;
-
-      const colorSwatch = tr.querySelector('.color-swatch');
-      let color = '#888888';
-      if (colorSwatch) {
-        const bgStyle = window.getComputedStyle(colorSwatch).backgroundColor;
-        if (bgStyle && bgStyle !== 'rgba(0, 0, 0, 0)') {
-          color = bgStyle;
-        }
-      }
-
-      if (nameCell && seats > 0) {
-        results.push({ name: nameCell, seats, color });
-      }
-    }
+    const badge  = tr.querySelector('.result-badge');
+    const swatch = tr.querySelector('.color-swatch');
+    const nameEl = tr.querySelector('.result-party-name');
+    const seats  = badge  ? parseInt(badge.textContent) || 0 : 0;
+    if (!seats) return;
+    const color = swatch
+      ? (swatch.style.background || swatch.style.backgroundColor || '#888')
+      : '#888';
+    const name = nameEl ? nameEl.textContent.trim() : (tr.querySelector('td')?.textContent.trim() || '?');
+    results.push({ name, seats, color });
   });
-
   return results;
 }
 
-function updateHemicycleIfVisible() {
-  const container = document.getElementById('hemicycle-container');
-  if (container && container.style.display !== 'none') {
-    drawHemicycle();
-  }
-}
+/* ── SHOW / HIDE TOGGLE ────────────────────────────────────────── */
 
 function showHemicycleToggle() {
   document.getElementById('hemicycle-toggle-container').style.display = 'block';
@@ -204,12 +164,12 @@ function showHemicycleToggle() {
 
 function hideHemicycleToggle() {
   document.getElementById('hemicycle-toggle-container').style.display = 'none';
-  const window = document.getElementById('hemicycle-window');
-  if (window) {
-    window.style.display = 'none';
-    const button = document.getElementById('hemicycle-toggle');
-    if (button) button.textContent = '▼ Representación visual';
-  }
+  closeHemicycleWindow();
+}
+
+function updateHemicycleIfVisible() {
+  const win = document.getElementById('hemicycle-window');
+  if (win && win.style.display !== 'none') drawHemicycle();
 }
 
 document.addEventListener('DOMContentLoaded', makeHemicycleDraggable);

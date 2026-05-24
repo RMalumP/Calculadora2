@@ -279,13 +279,13 @@
       </div>
 
       <!-- Hemiciclo Ventana Flotante -->
-      <div id="hemicycle-window" style="display:none;position:fixed;top:150px;right:50px;width:420px;background:white;border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 8px 24px rgba(0,0,0,0.15);z-index:1000">
-        <div id="hemicycle-header" style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:0.9rem;color:var(--text);cursor:grab;user-select:none;background:var(--accent-bg);border-radius:var(--radius) var(--radius) 0 0">
+      <div id="hemicycle-window" class="hemicycle-window" style="display:none">
+        <div id="hemicycle-header" class="hemicycle-window-header">
           <span>Representación visual</span>
-          <button onclick="closeHemicycleWindow()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem;padding:0;width:24px;height:24px;display:flex;align-items:center;justify-content:center">✕</button>
+          <button onclick="closeHemicycleWindow()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem;padding:0;line-height:1">✕</button>
         </div>
-        <div style="padding:20px">
-          <div id="hemicycle-chart" style="width:100%;max-width:380px;margin:0 auto"></div>
+        <div style="padding:20px 20px 24px">
+          <div id="hemicycle-chart"></div>
         </div>
       </div>
 
