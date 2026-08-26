@@ -88,7 +88,7 @@ async function advLoadElection(force) {
   _advCustomParties = {};
   _advPartyColors = {};
   const key = select('#adv-election')?.value || ADV_ELECTIONS[0].key;
-  advRenderStatus(`<div class="adv-loading"><span class="adv-spinner"></span>Cargando datos electorales desde Google Sheets…</div>`);
+  advRenderStatus(`<div class="adv-loading"><span class="adv-spinner"></span>Cargando datos electorales…</div>`);
   select('#adv-results').innerHTML = '';
   select('#adv-summary').innerHTML = '';
 
@@ -213,8 +213,8 @@ function advBuildYearSelect(data) {
 
   updateText(select('#adv-year-hint'),
     dates.length > 1
-      ? 'Esta hoja incluye más de una convocatoria; elige cuál calcular.'
-      : 'Esta hoja sólo contiene esta convocatoria.');
+      ? 'Hay más de una convocatoria; elige cuál calcular.'
+      : 'Sólo hay una convocatoria disponible.');
   setDisplay(select('#adv-year-field'), true);
   sel.disabled = dates.length <= 1;
 
@@ -345,9 +345,15 @@ function advUpdateSummaries() {
   if (c.barrera2.activa) barreras.push(`${c.barrera2.valor}% ${ADV_BARRIER_LABEL[c.barrera2.nivel] || ''}`.trim());
   updateText(select('#adv-sum-barreras'), barreras.length ? barreras.join(' + ') : 'Sin barrera');
 
+  const nEdits = advCountEdits();
+  updateText(select('#adv-sum-datos'),
+    _advEditMode ? `Editando · ${nEdits} cambio${nEdits === 1 ? '' : 's'}`
+    : nEdits ? `${nEdits} cambio${nEdits === 1 ? '' : 's'} en esta sesión`
+    : 'Sin cambios');
+
   const seatsTxt = c.seatsMode === 'custom'
     ? `${c.totalSeats} personalizados · mín. ${c.minPorCircunscripcion}`
-    : `${_advResult?.summary?.totalSeats ?? '—'} según la hoja`;
+    : `${_advResult?.summary?.totalSeats ?? '—'} originales`;
   updateText(select('#adv-sum-escanos'), seatsTxt);
 }
 
@@ -486,7 +492,7 @@ function advNationalCard() {
         <th style="width:19%">${advEscape(seatWord.charAt(0).toUpperCase() + seatWord.slice(1))}</th>
         <th class="adv-num" style="width:9%">% esc.</th>
         <th class="adv-num" style="width:8%">Dif. %</th>
-        ${showReal ? `<th class="adv-num" style="width:9%" title="Escaños reales según la hoja de datos">Reales</th>` : ''}
+        ${showReal ? `<th class="adv-num" style="width:9%" title="Escaños registrados en los datos originales">Reales</th>` : ''}
       </tr></thead>
       <tbody>${withSeats.map(row).join('') || `<tr><td colspan="7" class="adv-empty">Ninguna candidatura obtiene representación.</td></tr>`}</tbody>
     </table>
@@ -511,7 +517,7 @@ function advDistrictsCard() {
   if (level === 'nacional') {
     return `<div class="card">
       <div class="card-header"><span class="dot"></span>Circunscripción estatal única</div>
-      <div style="padding:10px 12px">${advDistrictHTML(r.districts[0], true)}</div>
+      <div style="padding:10px 12px">${advDistrictHTML(r.districts[0], false)}</div>
     </div>`;
   }
 
@@ -541,7 +547,7 @@ function advDistrictsCard() {
     // Con circunscripción autonómica el grupo ya es la circunscripción: su
     // cuerpo es la tabla de resultados, no otra ficha anidada.
     const inner = level === 'ccaa'
-      ? `<div style="padding:6px 10px 10px">${advDistrictHTML(ds[0], true, true)}</div>`
+      ? `<div style="padding:6px 10px 10px">${advDistrictHTML(ds[0], false, true)}</div>`
       : ds.map(d => advDistrictHTML(d, false)).join('');
 
     const nProv = ds.reduce((s2, d) => s2 + (d.members?.length || 1), 0);
@@ -678,7 +684,7 @@ function advDistrictHTML(d, alwaysFull, hideHead) {
         <th class="adv-num" style="width:20%">Votos</th>
         <th class="adv-num" style="width:13%">%</th>
         <th class="adv-num" style="width:14%">Esc.</th>
-        ${showReal ? `<th class="adv-num" style="width:12%" title="Escaños reales según la hoja">Reales</th>` : ''}
+        ${showReal ? `<th class="adv-num" style="width:12%" title="Escaños registrados en los datos originales">Reales</th>` : ''}
       </tr></thead>
       <tbody>${shown.map(tr).join('') || `<tr><td colspan="5" class="adv-empty">Sin datos.</td></tr>`}</tbody>
       ${foot}
@@ -710,7 +716,11 @@ function advEditsFor(districtId) {
   return _advEdits[districtId];
 }
 
-/** Refresca la barra superior: contador de cambios y botón de restaurar. */
+/**
+ * Refresca el botón de edición del panel y el aviso que aparece sobre los
+ * resultados. El botón vive en configuración; el aviso sólo se muestra
+ * mientras se edita, para no perder de vista el modo al bajar por la página.
+ */
 function advRefreshEditBar() {
   const n = advCountEdits();
   const badge = select('#adv-edit-badge');
@@ -727,10 +737,11 @@ function advRefreshEditBar() {
     ? '<span class="adv-edit-icon">✓</span> Terminar edición'
     : '<span class="adv-edit-icon">✎</span> Editar datos';
   toggleClass(toggle, 'active', _advEditMode);
+
+  if (bar) bar.hidden = !_advEditMode;
   toggleClass(bar, 'editing', _advEditMode);
-  updateText(select('#adv-edit-note'), _advEditMode
-    ? 'Cambia los votos de cada candidatura o los escaños de cada circunscripción: el reparto se recalcula al momento.'
-    : 'Modifica votos y escaños de cada circunscripción. Los cambios son sólo de esta sesión: no tocan la hoja de datos.');
+  updateText(select('#adv-edit-note'),
+    'Edición activa: cambia los votos de cada candidatura o los escaños de cada circunscripción y el reparto se recalcula al momento.');
 }
 
 /**
@@ -838,7 +849,7 @@ function advOpenAddParty(districtId, anchorBtn) {
   pop.innerHTML = `
     <div class="adv-add-pop-title">Añadir candidatura a ${advEscape(district?.name || '')}</div>
     ${missing.length ? `
-      <label class="adv-add-lbl">De la hoja</label>
+      <label class="adv-add-lbl">Ya existentes</label>
       <div class="adv-row">
         <div class="adv-select-wrap" style="flex:1">
           <select class="adv-add-select">
@@ -933,12 +944,13 @@ function advAttachRowDrag(scope) {
 function advToggleEditMode() {
   _advEditMode = !_advEditMode;
   advRefreshEditBar();
+  advUpdateSummaries();
   advRenderResults();
 }
 
 function advResetEdits() {
   if (!advCountEdits()) return;
-  if (!confirm('¿Descartar todos los cambios y volver a los datos de la hoja?')) return;
+  if (!confirm('¿Descartar todos los cambios y volver a los datos originales?')) return;
   _advEdits = {};
   _advCustomParties = {};
   _advPartyColors = {};

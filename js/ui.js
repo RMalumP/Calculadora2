@@ -62,15 +62,56 @@ function toggleHideNames() {
 
 /* ── TABS ─────────────────────────────────────────────────── */
 
-function switchTab(tabName) {
+/**
+ * Dirección de cada pestaña. Se usa el fragmento de la URL (#...) y no el
+ * historial: así la dirección funciona igual servida y al abrir el archivo
+ * directamente desde el disco, donde cambiar la ruta no está permitido.
+ */
+const TAB_SLUGS = {
+  calculator: 'calculadora',
+  pactometer: 'pactometro',
+  advanced:   'avanzada',
+  theory:     'teoria'
+};
+const SLUG_TO_TAB = Object.fromEntries(Object.entries(TAB_SLUGS).map(([k, v]) => [v, k]));
+
+function switchTab(tabName, updateHash = true) {
   selectAll('.tab-content').forEach(t => t.classList.remove('active'));
   selectAll('.tab').forEach(b => b.classList.remove('active'));
-  const tabMap = { calculator: 'calculator-tab', advanced: 'advanced-tab', pactometer: 'pactometer-tab', theory: 'theory-tab' };
-  const tabId = tabMap[tabName];
-  if (!tabId) return;
+  const tabId = `${tabName}-tab`;
+  if (!TAB_SLUGS[tabName] || !select(`#${tabId}`)) return;
   select(`#${tabId}`)?.classList.add('active');
   select(`.tab[data-tab="${tabName}"]`)?.classList.add('active');
+
+  if (updateHash) {
+    const slug = TAB_SLUGS[tabName];
+    if (location.hash.slice(1) !== slug) {
+      // replaceState evita llenar el historial con cada cambio de pestaña;
+      // si no está disponible (file:// en algunos navegadores) se recurre al
+      // fragmento directamente.
+      try { history.replaceState(null, '', `#${slug}`); }
+      catch (e) { location.hash = slug; }
+    }
+  }
+
   if (tabName === 'advanced' && typeof advEnsureLoaded === 'function') advEnsureLoaded();
+}
+
+/** Pestaña indicada en la URL, si la hay. */
+function tabFromHash() {
+  return SLUG_TO_TAB[decodeURIComponent(location.hash.replace(/^#/, ''))] || null;
+}
+
+/** Abre la pestaña de la URL al cargar y al navegar atrás o adelante. */
+function initTabRouting() {
+  const initial = tabFromHash();
+  if (initial) switchTab(initial, false);
+  else switchTab('calculator');
+
+  window.addEventListener('hashchange', () => {
+    const t = tabFromHash();
+    if (t) switchTab(t, false);
+  });
 }
 
 /* ── FÓRMULA ─────────────────────────────────────────────── */
@@ -400,6 +441,7 @@ function saveHTML() {
 /* ── INIT ────────────────────────────────────────────────── */
 
 document.addEventListener('DOMContentLoaded', function () {
+  initTabRouting();
   buildFormulaSelect();
   for (let i = 0; i < 5; i++) addRow();
   addRow('Otros partidos', '', '#474747', true);

@@ -21,15 +21,10 @@ registerTab('advanced', 'tab-content', String.raw`
           </div>
         </div>
 
-        <div class="adv-editbar" id="adv-editbar">
-          <button type="button" class="adv-edit-btn" id="adv-edit-toggle">
-            <span class="adv-edit-icon">✎</span> Editar datos
-          </button>
-          <span class="adv-edit-note" id="adv-edit-note">
-            Modifica votos y escaños de cada circunscripción. Los cambios son sólo de esta sesión: no tocan la hoja de datos.
-          </span>
+        <div class="adv-editbar" id="adv-editbar" hidden>
+          <span class="adv-edit-icon">✎</span>
+          <span class="adv-edit-note" id="adv-edit-note"></span>
           <span class="adv-edit-badge" id="adv-edit-badge" hidden>0 cambios</span>
-          <button type="button" class="adv-mini-btn" id="adv-edit-reset" hidden>Restaurar originales</button>
         </div>
 
         <div id="adv-status"></div>
@@ -58,14 +53,14 @@ registerTab('advanced', 'tab-content', String.raw`
               </header>
               <div class="adv-cfg-content">
                 <div class="adv-field">
-                  <label for="adv-election">Hoja de datos</label>
+                  <label for="adv-election">Conjunto de datos</label>
                   <div class="adv-select-wrap"><select id="adv-election"></select></div>
-                  <small>Cada hoja del documento es una elección.</small>
+                  <small>Cada conjunto de datos corresponde a una elección.</small>
                 </div>
                 <div class="adv-field" id="adv-year-field">
                   <label for="adv-year">Año de elección</label>
                   <div class="adv-select-wrap"><select id="adv-year"></select></div>
-                  <small id="adv-year-hint">Si la hoja incluye más de una convocatoria, elige cuál calcular.</small>
+                  <small id="adv-year-hint">Si hay más de una convocatoria, elige cuál calcular.</small>
                 </div>
               </div>
             </section>
@@ -150,7 +145,7 @@ registerTab('advanced', 'tab-content', String.raw`
                   <label for="adv-seats-mode">Origen del total</label>
                   <div class="adv-select-wrap">
                     <select id="adv-seats-mode">
-                      <option value="sheet">Los de la hoja de datos</option>
+                      <option value="sheet">Los originales</option>
                       <option value="custom">Total personalizado</option>
                     </select>
                   </div>
@@ -178,10 +173,27 @@ registerTab('advanced', 'tab-content', String.raw`
               </div>
             </section>
 
+            <section class="adv-cfg" data-section="datos">
+              <header class="adv-cfg-head">
+                <button type="button" class="adv-cfg-toggle">
+                  <span class="adv-cfg-titleline"><span class="adv-cfg-caret">▸</span><span class="adv-cfg-name">Datos</span></span>
+                  <span class="adv-cfg-summary" id="adv-sum-datos">—</span>
+                </button>
+              </header>
+              <div class="adv-cfg-content">
+                <button type="button" class="adv-edit-btn" id="adv-edit-toggle">
+                  <span class="adv-edit-icon">✎</span> Editar datos
+                </button>
+                <small>Cambia los votos de cada candidatura y los escaños de cada circunscripción. Los cambios son sólo de esta sesión y se pueden deshacer.</small>
+                <button type="button" class="adv-mini-btn" id="adv-edit-reset" hidden>Restaurar originales</button>
+                <div class="adv-divider"></div>
+                <button type="button" class="adv-mini-btn" id="adv-meta-btn">Ver metadatos</button>
+              </div>
+            </section>
+
             <div class="adv-row adv-cfg-actions">
-              <button class="adv-mini-btn" id="adv-reset">Valores de la hoja</button>
+              <button class="adv-mini-btn" id="adv-reset">Valores originales</button>
               <button class="adv-mini-btn" id="adv-reload">Recargar datos</button>
-              <button class="adv-mini-btn" id="adv-meta-btn">Metadatos</button>
             </div>
 
           </div>
