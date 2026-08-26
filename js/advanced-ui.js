@@ -534,7 +534,7 @@ function advDistrictsCard() {
       <div class="card-header"><span class="dot"></span>Circunscripción estatal única
         <span class="adv-toolbar"><button type="button" class="adv-lock adv-lock-master" data-lock-all="1"
           title="Candado maestro de todas las circunscripciones. Clic derecho o pulsación larga para elegir qué cubre y en cuáles."
-        >🗝️</button></span>
+        >🔐</button></span>
       </div>
       <div style="padding:10px 12px">${advDistrictHTML(r.districts[0], false)}</div>
     </div>`;
@@ -616,7 +616,7 @@ function advDistrictsCard() {
         <button class="adv-mini-btn" id="adv-collapse-all">Colapsar todo</button>
         <button type="button" class="adv-lock adv-lock-master" data-lock-all="1"
           title="Candado maestro de todas las circunscripciones. Clic derecho o pulsación larga para elegir qué cubre y en cuáles."
-        >🗝️</button>
+        >🔐</button>
       </span>
     </div>
     ${body}
