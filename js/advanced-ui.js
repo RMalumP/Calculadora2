@@ -28,6 +28,14 @@ let _advExpandedDistricts = new Set();
 let _advLoading = false;
 let _advLoaded  = false;
 
+const ADV_MESES = ['', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+function advMesLabel(mes) {
+  const n = parseInt(mes, 10);
+  return ADV_MESES[n] || (mes ? String(mes) : '');
+}
+
 function advPartyColor(p) {
   const k = (p.siglas || p.name || '').toUpperCase();
   if (ADV_PARTY_COLORS[k]) return ADV_PARTY_COLORS[k];
@@ -68,9 +76,10 @@ async function advLoadElection(force) {
       return;
     }
 
+    const defaultYearKey = advBuildYearSelect(_advParties);
     _advConfig = advDefaultConfig(_advParties.meta);
+    _advConfig.yearKey = defaultYearKey;
     advSyncConfigToForm();
-    advUpdateHeader();
     advRun();
   } catch (err) {
     _advLoaded = false;
@@ -125,14 +134,72 @@ function advRenderStatus(html) {
   if (el) el.innerHTML = html;
 }
 
-function advUpdateHeader() {
+/**
+ * Convocatorias distintas presentes en la hoja: una hoja puede mezclar filas
+ * de más de una elección real (p. ej. dos convocatorias del mismo año, como
+ * abril y noviembre de 2019), así que se agrupa por año+mes y se deduplica
+ * para que el desplegable muestre una única entrada por convocatoria, no una
+ * por cada fila/provincia.
+ */
+function advElectionDates(data) {
+  const map = new Map();
+  data.rows.forEach(r => {
+    if (!r.anio) return;
+    const key = `${r.anio}|${r.mes || ''}`;
+    if (!map.has(key)) map.set(key, { key, anio: r.anio, mes: r.mes || '' });
+  });
+  return [...map.values()].sort((a, b) =>
+    String(a.anio).localeCompare(String(b.anio), 'es', { numeric: true }) ||
+    (parseInt(a.mes, 10) || 0) - (parseInt(b.mes, 10) || 0));
+}
+
+/** Repuebla el desplegable de convocatoria y devuelve la clave a seleccionar por defecto. */
+function advBuildYearSelect(data) {
+  const dates = advElectionDates(data);
+  const sel = select('#adv-year');
+  if (!sel) return dates[dates.length - 1]?.key || '';
+
+  const sameYear = new Map();
+  dates.forEach(d => sameYear.set(d.anio, (sameYear.get(d.anio) || 0) + 1));
+
+  sel.innerHTML = '';
+  dates.forEach(d => {
+    const o = document.createElement('option');
+    o.value = d.key;
+    const mesLabel = advMesLabel(d.mes);
+    o.textContent = (sameYear.get(d.anio) > 1 && mesLabel)
+      ? `${d.anio} (${mesLabel})`
+      : String(d.anio);
+    sel.appendChild(o);
+  });
+
+  updateText(select('#adv-year-hint'),
+    dates.length > 1
+      ? 'Esta hoja incluye más de una convocatoria; elige cuál calcular.'
+      : 'Esta hoja sólo contiene esta convocatoria.');
+  setDisplay(select('#adv-year-field'), true);
+  sel.disabled = dates.length <= 1;
+
+  return dates[dates.length - 1]?.key || '';
+}
+
+function advUpdateHeader(rows) {
   const m = _advParties?.meta;
   if (!m) return;
   const partes = [m.tipo, m.subtipo].filter(Boolean).join(' · ');
-  const anios = [...new Set(_advParties.rows.map(r => r.anio))].filter(Boolean).join(', ');
+  const first = rows[0];
+  const fecha = first ? [first.anio, advMesLabel(first.mes)].filter(Boolean).join(' de ') : '';
   updateText(select('#adv-subtitle'),
-    `${partes}${m.pais ? ' · ' + m.pais.charAt(0).toUpperCase() + m.pais.slice(1) : ''}${anios ? ' · ' + anios : ''} · ` +
-    `${_advParties.rows.length} circunscripciones de origen · ${_advParties.parties.length} candidaturas`);
+    `${partes}${m.pais ? ' · ' + m.pais.charAt(0).toUpperCase() + m.pais.slice(1) : ''}${fecha ? ' · ' + fecha : ''} · ` +
+    `${rows.length} circunscripciones de origen · ${_advParties.parties.length} candidaturas`);
+}
+
+/** Filas de la elección seleccionada en el desplegable de convocatoria. */
+function advSelectedRows() {
+  const key = _advConfig?.yearKey;
+  if (!key) return _advParties.rows;
+  const filtered = _advParties.rows.filter(r => `${r.anio}|${r.mes || ''}` === key);
+  return filtered.length ? filtered : _advParties.rows;
 }
 
 /* ── Formulario de configuración ───────────────────────────── */
@@ -166,6 +233,7 @@ function advBuildElectionOptions() {
 function advSyncConfigToForm() {
   const c = _advConfig;
   if (!c) return;
+  if (c.yearKey) select('#adv-year').value = c.yearKey;
   select('#adv-level').value    = c.circunscripcion;
   select('#adv-formula').value  = c.formula;
 
@@ -189,6 +257,7 @@ function advSyncConfigToForm() {
 /** Lee el formulario y devuelve la configuración. */
 function advReadForm() {
   return {
+    yearKey: select('#adv-year')?.value || '',
     circunscripcion: select('#adv-level').value,
     formula:         select('#adv-formula').value,
     barrera1: {
@@ -239,8 +308,10 @@ function advOnConfigChange() {
 function advRun() {
   if (!_advParties) return;
   _advConfig = advReadForm();
+  const rows = advSelectedRows();
+  advUpdateHeader(rows);
   try {
-    _advResult = advCalculate(_advParties, _advConfig);
+    _advResult = advCalculate({ ..._advParties, rows }, _advConfig);
   } catch (err) {
     advRenderStatus(`<div class="adv-notice error"><strong>Error al calcular.</strong><br>${advEscape(err.message)}</div>`);
     return;
@@ -491,7 +562,7 @@ function advInit() {
   advBuildElectionOptions();
   advBuildFormulaOptions();
 
-  ['#adv-level', '#adv-formula', '#adv-b1-on', '#adv-b1-level', '#adv-b1-val',
+  ['#adv-year', '#adv-level', '#adv-formula', '#adv-b1-on', '#adv-b1-level', '#adv-b1-val',
    '#adv-b2-on', '#adv-b2-level', '#adv-b2-val', '#adv-blanco',
    '#adv-seats-mode', '#adv-total-seats', '#adv-min-seats', '#adv-reparto-base'
   ].forEach(sel => {
@@ -503,7 +574,9 @@ function advInit() {
   select('#adv-election')?.addEventListener('change', () => advLoadElection(false));
   select('#adv-reset')?.addEventListener('click', () => {
     if (!_advParties) return;
+    const yearKey = select('#adv-year')?.value || '';
     _advConfig = advDefaultConfig(_advParties.meta);
+    _advConfig.yearKey = yearKey;
     advSyncConfigToForm();
     advRun();
   });
