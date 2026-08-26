@@ -1150,3 +1150,66 @@ tr.drag-over-below td { box-shadow: inset 0 -2px 0 var(--accent); }
 .adv-exc-item.group small { color: var(--text-muted); font-weight: 600; }
 .adv-exc-item.partial input { opacity: 0.6; }
 .adv-exc-item input { cursor: pointer; flex-shrink: 0; }
+
+/* ── SELECCIÓN DE CIRCUNSCRIPCIONES DENTRO DEL MENÚ MAESTRO ──
+   En un candado maestro (comunidad o general) cada aspecto puede aplicarse
+   sólo a algunas de sus circunscripciones, no forzosamente a todas. */
+
+.adv-lock-menu.master { width: 300px; }
+
+.adv-lock-row {
+  border-radius: var(--radius);
+  padding-bottom: 2px;
+}
+.adv-lock-row.partial { background: rgba(139, 31, 31, 0.05); }
+.adv-lock-row .adv-lock-opt { width: 100%; }
+
+.adv-lock-pick {
+  display: block;
+  margin: 0 0 3px 28px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: 'Source Sans 3', sans-serif;
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: var(--accent);
+  padding: 1px 3px;
+  border-radius: 3px;
+}
+.adv-lock-pick:hover { background: var(--accent-pale); }
+
+.adv-lock-members {
+  margin: 0 4px 6px 28px;
+  padding: 4px 0;
+  border-top: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-light);
+  max-height: 190px;
+  overflow-y: auto;
+}
+.adv-lock-members[hidden] { display: none; }
+
+.adv-lock-member {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 5px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 0.73rem;
+  color: var(--text);
+}
+.adv-lock-member:hover { background: var(--accent-pale); }
+.adv-lock-member input { cursor: pointer; flex-shrink: 0; margin: 0; }
+
+/* Candado maestro general, en la cabecera de resultados */
+.adv-lock-master {
+  opacity: 0.65;
+  font-size: 0.82rem;
+  border-color: rgba(255,255,255,0.2);
+}
+.adv-lock-master:hover {
+  opacity: 1;
+  background: rgba(255,255,255,0.12);
+  border-color: rgba(255,255,255,0.4);
+}

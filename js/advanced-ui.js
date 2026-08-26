@@ -531,7 +531,11 @@ function advDistrictsCard() {
 
   if (level === 'nacional') {
     return `<div class="card">
-      <div class="card-header"><span class="dot"></span>Circunscripción estatal única</div>
+      <div class="card-header"><span class="dot"></span>Circunscripción estatal única
+        <span class="adv-toolbar"><button type="button" class="adv-lock adv-lock-master" data-lock-all="1"
+          title="Candado maestro de todas las circunscripciones. Clic derecho o pulsación larga para elegir qué cubre y en cuáles."
+        >🗝️</button></span>
+      </div>
       <div style="padding:10px 12px">${advDistrictHTML(r.districts[0], false)}</div>
     </div>`;
   }
@@ -610,6 +614,9 @@ function advDistrictsCard() {
       <span class="adv-toolbar">
         <button class="adv-mini-btn" id="adv-expand-all">Expandir todo</button>
         <button class="adv-mini-btn" id="adv-collapse-all">Colapsar todo</button>
+        <button type="button" class="adv-lock adv-lock-master" data-lock-all="1"
+          title="Candado maestro de todas las circunscripciones. Clic derecho o pulsación larga para elegir qué cubre y en cuáles."
+        >🗝️</button>
       </span>
     </div>
     ${body}
@@ -1134,36 +1141,60 @@ function advInitExceptions() {
  */
 function advOpenLockMenu(opts) {
   select('.adv-lock-menu')?.remove();
-  const { anchor, districtId, ccaaName } = opts;
+  const { anchor, districtId, ccaaName, scope } = opts;
 
-  const members = ccaaName ? advCcaaMembers(ccaaName) : null;
-  const title = ccaaName
+  // Ámbito del menú: una circunscripción, una comunidad, o todas.
+  const all = _advResult?.districts || [];
+  const members = scope === 'all' ? all
+    : ccaaName ? advCcaaMembers(ccaaName)
+    : all.filter(d => d.id === districtId);
+  if (!members.length) return;
+
+  const isMaster = members.length > 1;
+  const title = scope === 'all'
+    ? `Todas · ${members.length} circunscripciones`
+    : ccaaName
     ? `${ccaaName} · ${members.length} circunscripci${members.length === 1 ? 'ón' : 'ones'}`
-    : (_advResult?.districts.find(d => d.id === districtId)?.name || '');
+    : members[0].name;
 
-  // Estado de cada aspecto: en una comunidad puede ser parcial.
+  // Estado de cada aspecto dentro del ámbito: puede ser parcial.
   const stateOf = aspect => {
-    if (!ccaaName) return advLockHas(_advLocks, districtId, aspect) ? 'all' : 'none';
     const n = members.filter(d => advLockHas(_advLocks, d.id, aspect)).length;
     return n === 0 ? 'none' : n === members.length ? 'all' : 'some';
   };
 
   const menu = document.createElement('div');
-  menu.className = 'adv-lock-menu';
+  menu.className = 'adv-lock-menu' + (isMaster ? ' master' : '');
   menu.innerHTML = `
     <div class="adv-lock-menu-title">
-      ${ccaaName ? 'Candado maestro' : 'Candado'}
+      ${isMaster ? 'Candado maestro' : 'Candado'}
       <small>${advEscape(title)}</small>
     </div>
     ${ADV_LOCK_ASPECTS.map(a => {
       const st = stateOf(a.key);
-      return `<label class="adv-lock-opt${st === 'some' ? ' partial' : ''}">
-        <input type="checkbox" data-aspect="${a.key}" ${st === 'all' ? 'checked' : ''}>
-        <span class="adv-lock-opt-text">
-          <b>${advEscape(a.label)}</b>
-          <small>${advEscape(a.hint)}${st === 'some' ? ' · en algunas' : ''}</small>
-        </span>
-      </label>`;
+      // En un maestro cada aspecto puede desplegarse para elegir a qué
+      // circunscripciones concretas se aplica, en vez de a todas.
+      const list = isMaster ? `
+        <button type="button" class="adv-lock-pick" data-pick="${a.key}"
+                title="Elegir a qué circunscripciones se aplica">▸ elegir</button>
+        <div class="adv-lock-members" data-members="${a.key}" hidden>
+          ${members.map(d => `
+            <label class="adv-lock-member">
+              <input type="checkbox" data-member-aspect="${a.key}" data-member-id="${advEscape(d.id)}"
+                     ${advLockHas(_advLocks, d.id, a.key) ? 'checked' : ''}>
+              ${advEscape(d.name)}
+            </label>`).join('')}
+        </div>` : '';
+      return `<div class="adv-lock-row${st === 'some' ? ' partial' : ''}">
+        <label class="adv-lock-opt">
+          <input type="checkbox" data-aspect="${a.key}" ${st === 'all' ? 'checked' : ''}>
+          <span class="adv-lock-opt-text">
+            <b>${advEscape(a.label)}</b>
+            <small>${advEscape(a.hint)}${st === 'some' ? ` · en ${members.filter(d => advLockHas(_advLocks, d.id, a.key)).length} de ${members.length}` : ''}</small>
+          </span>
+        </label>
+        ${list}
+      </div>`;
     }).join('')}
     <div class="adv-lock-menu-foot">
       <button type="button" class="adv-mini-btn" data-all="1">Todo</button>
@@ -1177,26 +1208,49 @@ function advOpenLockMenu(opts) {
     window.scrollX + r.left - menu.offsetWidth + r.width,
     window.scrollX + document.documentElement.clientWidth - menu.offsetWidth - 10))}px`;
 
-  const apply = (aspect, on) => {
-    if (ccaaName) advSetCcaaAspect(ccaaName, aspect, on);
-    else { advSetLockAspect(districtId, aspect, on); advRun(); }
+  /** Vuelve a dibujar el menú conservando qué aspectos estaban desplegados. */
+  const refresh = () => {
+    const open = [...menu.querySelectorAll('.adv-lock-members:not([hidden])')].map(e => e.dataset.members);
+    advRun();
+    advOpenLockMenu(opts);
+    const fresh = select('.adv-lock-menu');
+    open.forEach(k => {
+      const box = fresh?.querySelector(`.adv-lock-members[data-members="${k}"]`);
+      if (box) box.hidden = false;
+      const btn = fresh?.querySelector(`.adv-lock-pick[data-pick="${k}"]`);
+      if (btn) btn.textContent = '▾ elegir';
+    });
   };
 
-  // El menú no se cierra al marcar: así se pueden elegir varios aspectos
-  // seguidos sin tener que volver a abrirlo.
+  // Casilla del aspecto: aplica a todo el ámbito.
   menu.querySelectorAll('input[data-aspect]').forEach(inp => {
     inp.addEventListener('change', () => {
-      apply(inp.dataset.aspect, inp.checked);
-      menu.querySelectorAll('.adv-lock-opt').forEach(o => o.classList.remove('partial'));
+      members.forEach(d => advSetLockAspect(d.id, inp.dataset.aspect, inp.checked));
+      refresh();
     });
   });
+
+  // Casilla de una circunscripción concreta dentro de un aspecto.
+  menu.querySelectorAll('input[data-member-aspect]').forEach(inp => {
+    inp.addEventListener('change', () => {
+      advSetLockAspect(inp.dataset.memberId, inp.dataset.memberAspect, inp.checked);
+      refresh();
+    });
+  });
+
+  menu.querySelectorAll('.adv-lock-pick').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const box = menu.querySelector(`.adv-lock-members[data-members="${btn.dataset.pick}"]`);
+      if (!box) return;
+      box.hidden = !box.hidden;
+      btn.textContent = box.hidden ? '▸ elegir' : '▾ elegir';
+    });
+  });
+
   menu.querySelectorAll('button[data-all]').forEach(btn => {
     btn.addEventListener('click', () => {
       const on = btn.dataset.all === '1';
-      ADV_LOCK_ASPECTS.forEach(a => {
-        if (ccaaName) advCcaaMembers(ccaaName).forEach(d => advSetLockAspect(d.id, a.key, on));
-        else advSetLockAspect(districtId, a.key, on);
-      });
+      members.forEach(d => ADV_LOCK_ASPECTS.forEach(a => advSetLockAspect(d.id, a.key, on)));
       advRun();
       menu.remove();
     });
@@ -1441,6 +1495,14 @@ function advAttachResultHandlers() {
     const id = btn.dataset.lockDistrict;
     btn.addEventListener('click', e => { e.stopPropagation(); advToggleLock(id); });
     advAttachLockMenu(btn, { districtId: id });
+  });
+
+  selectAll('#adv-results .adv-lock[data-lock-all]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      advOpenLockMenu({ scope: 'all', anchor: btn });
+    });
+    advAttachLockMenu(btn, { scope: 'all' });
   });
 
   selectAll('#adv-results .adv-lock[data-lock-ccaa]').forEach(btn => {
