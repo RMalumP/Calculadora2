@@ -6,6 +6,12 @@
 
 const ADV_SHEET_ID = '1pjggxoPWBxMo9HSN0kVo-HFPvMxYj1g7x8-AMlu6rCM';
 
+// Se incrementa con cada cambio relevante del parser. Sirve para comprobar a
+// simple vista, desde el panel de diagnóstico o la consola, si el navegador
+// está sirviendo una versión en caché de este archivo.
+const ADV_PARSER_VERSION = '2024-header-autodetect-2';
+console.log('[Calculadora avanzada] advanced-data.js versión', ADV_PARSER_VERSION);
+
 /**
  * Registro de hojas (elecciones) disponibles.
  * Para añadir una nueva hoja en el futuro: abre su pestaña en Google Sheets,
@@ -165,15 +171,17 @@ function advFetchTable(gid, timeoutMs = ADV_FETCH_TIMEOUT_MS) {
 function _advFindHeaderRow(rows) {
   let best = -1, bestCount = 0;
   const scanLimit = Math.min(rows.length, 40);
+  const scan = [];
   for (let r = 0; r < scanLimit; r++) {
     const width = rows[r]?.c?.length || 0;
     let count = 0;
     for (let c = 0; c < width; c++) {
       if (_advNormalize(_advCellText(rows, r, c)) === 'votos') count++;
     }
+    scan.push({ row: r, votosCount: count, preview: Array.from({ length: Math.min(width, 6) }, (_, c) => _advCellText(rows, r, c)) });
     if (count > bestCount) { bestCount = count; best = r; }
   }
-  return bestCount > 0 ? best : 5; // valor de referencia si no se encuentra ninguna
+  return { headerRow: bestCount > 0 ? best : 5, scan, found: bestCount > 0 };
 }
 
 function advParseTable(table) {
@@ -182,7 +190,8 @@ function advParseTable(table) {
   // El resto de filas (metadatos, nombres y siglas de partido) se ubican en
   // relación a la fila de cabecera, siguiendo la disposición original de la
   // hoja: 5 filas de metadatos, luego nombres, luego siglas, luego cabecera.
-  const headerRow  = _advFindHeaderRow(rows);
+  const headerScan = _advFindHeaderRow(rows);
+  const headerRow  = headerScan.headerRow;
   const nameRow    = headerRow - 2;
   const siglasRow  = headerRow - 1;
   const barrera1Row = headerRow - 5;
@@ -266,9 +275,12 @@ function advParseTable(table) {
 
   const debug = {
     headerRowIndex: headerRow,
+    headerRowFound: headerScan.found,
     headerRowTexts: Array.from({ length: numCols }, (_, c) => _advCellText(rows, headerRow, c)).filter(Boolean),
     metaCols: { ...metaCols },
-    numDataRowsScanned: Math.max(0, rows.length - (headerRow + 1))
+    numDataRowsScanned: Math.max(0, rows.length - (headerRow + 1)),
+    totalRowsFromSheet: rows.length,
+    rowScan: headerScan.scan
   };
 
   const dataRows = [];

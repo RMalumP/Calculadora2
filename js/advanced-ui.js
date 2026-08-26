@@ -113,19 +113,32 @@ function advNoRowsDiagnostic(debug) {
   const rowsOk = [], rowsMissing = [];
   Object.entries(need).forEach(([k, label]) => (cols[k] !== undefined ? rowsOk : rowsMissing).push(label));
 
+  const scanTable = (debug?.rowScan || []).map(s =>
+    `fila gviz #${s.row} (×"votos"=${s.votosCount}): ${s.preview.map(advEscape).join(' | ')}`
+  ).join('\n');
+
   return `<div class="adv-notice error">
     <strong>La hoja se ha leído, pero no se ha detectado ninguna fila de datos.</strong><br>
-    ${rowsMissing.length
+    ${debug && !debug.headerRowFound
+      ? 'No se ha encontrado ninguna fila con celdas de texto "Votos", así que no se ha podido localizar la cabecera de la tabla de partidos.'
+      : rowsMissing.length
       ? `No se ha reconocido la columna de cabecera para: <strong>${rowsMissing.map(advEscape).join(', ')}</strong>.
-         Revisa que en la fila ${(debug?.headerRowIndex ?? 5) + 1} el texto de esas columnas mencione esas palabras.`
-      : 'Todas las columnas clave se han reconocido, pero ninguna fila desde la 7 tiene texto en la columna de provincia. Revisa que los datos empiecen ahí y no haya una fila en blanco antes.'}
+         Revisa el texto de esas columnas en la fila de cabecera detectada más abajo.`
+      : 'Todas las columnas clave se han reconocido, pero ninguna fila después de la cabecera tiene texto en la columna de provincia.'}
   </div>
-  <details class="adv-notice info" style="cursor:pointer">
+  <details class="adv-notice info" style="cursor:pointer" open>
     <summary style="cursor:pointer;font-weight:700">Ver diagnóstico técnico</summary>
-    <div style="margin-top:8px;font-family:monospace;font-size:0.72rem;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6">Fila de cabecera detectada: ${(debug?.headerRowIndex ?? '?') + 1}
-Columnas leídas en esa fila: ${(debug?.headerRowTexts || []).map(advEscape).join(' | ') || '(ninguna)'}
+    <div style="margin-top:8px;font-family:monospace;font-size:0.72rem;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6">Versión del parser: ${ADV_PARSER_VERSION}
+Filas totales recibidas de Google Sheets: ${debug?.totalRowsFromSheet ?? '?'}
+Cabecera encontrada por contenido ("Votos"): ${debug?.headerRowFound ? 'sí' : 'no (se usó la fila de reserva 5)'}
+Fila de cabecera usada: índice gviz ${debug?.headerRowIndex ?? '?'}
+
+Primeras filas devueltas por Google Sheets (índice gviz, no el número de fila que ves en Sheets):
+${scanTable || '(sin datos)'}
+
+Columnas leídas en la fila de cabecera: ${(debug?.headerRowTexts || []).map(advEscape).join(' | ') || '(ninguna)'}
 Columnas identificadas: ${JSON.stringify(cols)}
-Filas de datos exploradas (a partir de la fila ${((debug?.headerRowIndex ?? 5) + 1) + 1}): ${debug?.numDataRowsScanned ?? '?'}</div>
+Filas de datos exploradas tras la cabecera: ${debug?.numDataRowsScanned ?? '?'}</div>
   </details>`;
 }
 
