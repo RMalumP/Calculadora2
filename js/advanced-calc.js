@@ -122,29 +122,61 @@ function advApplySeatEdits(districts, edits) {
  * - 'sheet':  usa los valores de la hoja (suma de las provincias que la componen).
  * - 'custom': reparte un total dado con un mínimo por circunscripción y el
  *             resto en proporción a población o censo (como el sistema español).
+ *
+ * Las circunscripciones bloqueadas quedan fuera del reparto: conservan sus
+ * escaños, que se descuentan del total antes de repartir el resto. Así, con un
+ * mínimo de 2 por circunscripción y Melilla bloqueada en 1, Melilla mantiene
+ * su escaño, las demás reciben su mínimo, y el total sigue cuadrando.
  */
-function advApportionSeats(districts, config) {
+function advApportionSeats(districts, config, lockedSeats) {
+  const lockedOf = d => lockedSeats?.get(d.id);
+  const isLocked = d => lockedOf(d) != null;
+
   if (config.seatsMode !== 'custom') {
-    districts.forEach(d => { d.seats = d.seatsBase; });
+    districts.forEach(d => { d.seats = isLocked(d) ? lockedOf(d) : d.seatsBase; });
     return { total: districts.reduce((s, d) => s + d.seats, 0), warning: null };
   }
 
   const total = Math.max(0, parseInt(config.totalSeats) || 0);
   const min   = Math.max(0, parseInt(config.minPorCircunscripcion) || 0);
-  const n     = districts.length;
 
-  if (min * n > total) {
-    districts.forEach(d => { d.seats = Math.floor(total / n); });
-    let rest = total - Math.floor(total / n) * n;
-    for (let i = 0; i < rest; i++) districts[i].seats++;
-    return { total, warning: `El mínimo de ${min} por circunscripción exige ${min * n} escaños, más que el total de ${total}. Se ha repartido a partes iguales.` };
+  // Los bloqueados se sirven primero y salen del reparto.
+  const locked = districts.filter(isLocked);
+  const free   = districts.filter(d => !isLocked(d));
+  locked.forEach(d => { d.seats = Math.max(0, lockedOf(d)); });
+  const lockedTotal = locked.reduce((s, d) => s + d.seats, 0);
+
+  const n = free.length;
+  const toShare = total - lockedTotal;
+
+  if (toShare <= 0) {
+    free.forEach(d => { d.seats = 0; });
+    return {
+      total: lockedTotal,
+      warning: locked.length
+        ? `Las circunscripciones bloqueadas ya suman ${lockedTotal} escaños, igual o más que el total de ${total}. El resto se queda sin escaños.`
+        : null
+    };
+  }
+  if (!n) return { total: lockedTotal, warning: null };
+
+  if (min * n > toShare) {
+    const base = Math.floor(toShare / n);
+    free.forEach(d => { d.seats = base; });
+    let rest = toShare - base * n;
+    for (let i = 0; i < rest; i++) free[i].seats++;
+    return {
+      total,
+      warning: `El mínimo de ${min} por circunscripción exige ${min * n} escaños` +
+               `${lockedTotal ? ` para las no bloqueadas` : ''}, más que los ${toShare} disponibles. Se ha repartido a partes iguales.`
+    };
   }
 
-  const remaining = total - min * n;
-  const basis = districts.map(d => (config.repartoBase === 'censo' ? d.censoTotal : d.poblacion) || 0);
+  const remaining = toShare - min * n;
+  const basis = free.map(d => (config.repartoBase === 'censo' ? d.censoTotal : d.poblacion) || 0);
   const basisSum = basis.reduce((a, b) => a + b, 0);
 
-  districts.forEach(d => { d.seats = min; });
+  free.forEach(d => { d.seats = min; });
 
   if (remaining > 0 && basisSum > 0) {
     // Resto mayor (cuota Hare) sobre población/censo, como la LOREG.
@@ -157,9 +189,9 @@ function advApportionSeats(districts, config) {
       .sort((a, b) => b.rem - a.rem || basis[b.i] - basis[a.i]);
     let k = 0;
     while (assigned < remaining && order.length) { floors[order[k % order.length].i]++; assigned++; k++; }
-    districts.forEach((d, i) => { d.seats += floors[i]; });
+    free.forEach((d, i) => { d.seats += floors[i]; });
   } else if (remaining > 0) {
-    for (let i = 0; i < remaining; i++) districts[i % n].seats++;
+    for (let i = 0; i < remaining; i++) free[i % n].seats++;
   }
 
   return { total, warning: null };
@@ -233,12 +265,24 @@ function advComputeEligibility(districts, config) {
  * Calcula el reparto completo. Devuelve las circunscripciones con resultados,
  * el recuento nacional por partido y los avisos detectados.
  */
-function advCalculate(data, config, edits) {
+function advCalculate(data, config, edits, locks) {
   const districts = advBuildDistricts(data, config);
   // Los votos se sustituyen antes de calcular nada, para que barreras y
   // porcentajes partan ya de los valores editados.
   advApplyVoteEdits(districts, edits);
-  const apport    = advApportionSeats(districts, config);
+
+  // Una circunscripción bloqueada conserva los escaños que tuviera: los
+  // puestos a mano si los hay, y si no los de la hoja.
+  const lockedSeats = new Map();
+  if (locks && locks.size) {
+    districts.forEach(d => {
+      if (!locks.has(d.id)) return;
+      const manual = edits?.[d.id]?.seats;
+      lockedSeats.set(d.id, Math.max(0, manual != null ? manual : d.seatsBase));
+    });
+  }
+
+  const apport    = advApportionSeats(districts, config, lockedSeats);
   // Los escaños se sustituyen después del reparto: un valor puesto a mano
   // manda sobre los de la hoja y sobre el reparto automático.
   advApplySeatEdits(districts, edits);

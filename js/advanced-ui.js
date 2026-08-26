@@ -45,6 +45,14 @@ let _advCustomParties = {};
 
 /** Colores elegidos a mano, por candidatura. Mandan sobre la paleta. */
 let _advPartyColors = {};
+
+/**
+ * Circunscripciones bloqueadas, por su identificador.
+ * Una bloqueada conserva sus escaños frente al reparto automático —que se
+ * hace sólo con las libres, descontando los suyos del total— y no admite
+ * cambios en sus datos.
+ */
+let _advLocks = new Set();
 let _advLoading = false;
 let _advLoaded  = false;
 
@@ -87,6 +95,7 @@ async function advLoadElection(force) {
   _advEdits = {};
   _advCustomParties = {};
   _advPartyColors = {};
+  _advLocks = new Set();
   const key = select('#adv-election')?.value || ADV_ELECTIONS[0].key;
   advRenderStatus(`<div class="adv-loading"><span class="adv-spinner"></span>Cargando datos electorales…</div>`);
   select('#adv-results').innerHTML = '';
@@ -351,9 +360,11 @@ function advUpdateSummaries() {
     : nEdits ? `${nEdits} cambio${nEdits === 1 ? '' : 's'} en esta sesión`
     : 'Sin cambios');
 
-  const seatsTxt = c.seatsMode === 'custom'
+  const nLocks = _advLocks.size;
+  const lockTxt = nLocks ? ` · ${nLocks} fijada${nLocks === 1 ? '' : 's'}` : '';
+  const seatsTxt = (c.seatsMode === 'custom'
     ? `${c.totalSeats} personalizados · mín. ${c.minPorCircunscripcion}`
-    : `${_advResult?.summary?.totalSeats ?? '—'} originales`;
+    : `${_advResult?.summary?.totalSeats ?? '—'} originales`) + lockTxt;
   updateText(select('#adv-sum-escanos'), seatsTxt);
 }
 
@@ -404,7 +415,7 @@ function advRun() {
   advUpdateHeader(rows);
   try {
     const parties = [..._advParties.parties, ...Object.values(_advCustomParties)];
-    _advResult = advCalculate({ ..._advParties, parties, rows }, _advConfig, _advEdits);
+    _advResult = advCalculate({ ..._advParties, parties, rows }, _advConfig, _advEdits, _advLocks);
   } catch (err) {
     advRenderStatus(`<div class="adv-notice error"><strong>Error al calcular.</strong><br>${advEscape(err.message)}</div>`);
     return;
@@ -555,7 +566,16 @@ function advDistrictsCard() {
       ? `${nProv} provincia${nProv === 1 ? '' : 's'} agrupadas`
       : `${ds.length} circunscripci${ds.length === 1 ? 'ón' : 'ones'}`;
 
-    return `<div class="adv-ccaa">
+    // El candado del grupo actúa sobre todas sus circunscripciones a la vez.
+    const lockedCount = ds.filter(x => _advLocks.has(x.id)).length;
+    const allLocked  = lockedCount === ds.length;
+    const someLocked = lockedCount > 0 && !allLocked;
+    const lockTitle = allLocked
+      ? `Desbloquear ${ccaa}: sus circunscripciones volverán al reparto`
+      : `Bloquear ${ccaa}: sus ${ds.length} circunscripci${ds.length === 1 ? 'ón' : 'ones'} conservarán sus escaños`;
+
+    return `<div class="adv-ccaa${allLocked ? ' adv-locked' : ''}">
+      <div class="adv-ccaa-headrow">
       <button class="adv-ccaa-header" data-ccaa="${advEscape(ccaa)}" aria-expanded="${open}">
         <span class="adv-ccaa-arrow">${open ? '▼' : '▶'}</span>
         <span class="adv-ccaa-name">${advEscape(ccaa)}</span>
@@ -566,6 +586,10 @@ function advDistrictsCard() {
           <span class="adv-ccaa-stat"><b>${seats}</b> esc.</span>
         </span>
       </button>
+      <button type="button" class="adv-lock adv-ccaa-lock${allLocked ? ' on' : someLocked ? ' partial' : ''}"
+              data-lock-ccaa="${advEscape(ccaa)}" title="${advEscape(lockTitle)}" aria-pressed="${allLocked}"
+        >${allLocked ? '🔒' : someLocked ? '🔓' : '🔓'}</button>
+      </div>
       <div class="adv-ccaa-body" data-ccaa-body="${advEscape(ccaa)}" ${open ? '' : 'hidden'}>
         ${inner}
       </div>
@@ -590,6 +614,7 @@ function advDistrictsCard() {
 const ADV_VISIBLE_ROWS = 6;
 
 function advDistrictHTML(d, alwaysFull, hideHead) {
+  const locked = _advLocks.has(d.id);
   const expanded = alwaysFull || _advExpandedDistricts.has(d.id);
   const rows = d.results;
   // Se muestran siempre las candidaturas con escaño y las bloqueadas por barrera
@@ -615,7 +640,7 @@ function advDistrictHTML(d, alwaysFull, hideHead) {
     const color = advPartyColor(p);
     const cls = p.blockedReason ? 'adv-blocked' : p.seats === 0 ? 'adv-noseat' : '';
     const isEdited = edited.votes && edited.votes[p.key] !== undefined;
-    const votesCell = _advEditMode
+    const votesCell = (_advEditMode && !locked)
       ? `<input type="number" class="adv-edit-votes${isEdited ? ' changed' : ''}" min="0" step="1"
                 value="${p.votes}" data-district="${advEscape(d.id)}" data-party="${advEscape(p.key)}"
                 aria-label="Votos de ${advEscape(p.siglas || p.name)} en ${advEscape(d.name)}">`
@@ -623,7 +648,7 @@ function advDistrictHTML(d, alwaysFull, hideHead) {
 
     // En modo edición cada fila lleva los mismos controles que la calculadora
     // básica: arrastrar para reordenar, eliminar y color.
-    const controls = _advEditMode
+    const controls = (_advEditMode && !locked)
       ? `<span class="adv-row-tools">
            <span class="adv-drag-handle" title="Arrastrar para reordenar" data-party="${advEscape(p.key)}">⠿</span>
            <button type="button" class="adv-row-del" title="Quitar de esta circunscripción"
@@ -649,7 +674,7 @@ function advDistrictHTML(d, alwaysFull, hideHead) {
   // Con circunscripción autonómica la cabecera del grupo ya da nombre, votos
   // y escaños: repetirlos aquí sería ruido.
   const seatsEdited = edited.seats != null;
-  const seatsCell = _advEditMode
+  const seatsCell = (_advEditMode && !locked)
     ? `<label class="adv-edit-seats-wrap">
          <input type="number" class="adv-edit-seats${seatsEdited ? ' changed' : ''}" min="0" step="1"
                 value="${d.seats}" data-district="${advEscape(d.id)}"
@@ -658,7 +683,12 @@ function advDistrictHTML(d, alwaysFull, hideHead) {
        </label>`
     : `<b>${d.seats}</b> ${advEscape(seatWord)}${showReal && realTotal !== d.seats ? ` · ${realTotal} reales` : ''}`;
 
+  const lockBtn = `<button type="button" class="adv-lock${locked ? ' on' : ''}" data-lock-district="${advEscape(d.id)}"
+      title="${locked ? 'Desbloquear: volverá a entrar en el reparto de escaños' : 'Bloquear: conservará sus escaños y no se podrá editar'}"
+      aria-pressed="${locked}">${locked ? '🔒' : '🔓'}</button>`;
+
   const head = hideHead ? '' : `<div class="adv-district-head">
+      ${lockBtn}
       <span class="adv-district-name">${advEscape(d.name)}</span>
       <span class="adv-district-meta">${advNum(d.validVotes)} votos válidos${d.members.length > 1 ? ` · ${d.members.length} provincias` : ''}</span>
       <span class="adv-district-seats">${seatsCell}</span>
@@ -675,7 +705,7 @@ function advDistrictHTML(d, alwaysFull, hideHead) {
       ${showReal ? '<td></td>' : ''}
     </tr></tfoot>` : '';
 
-  return `<div class="adv-district" data-district-id="${advEscape(d.id)}">
+  return `<div class="adv-district${locked ? ' adv-locked' : ''}" data-district-id="${advEscape(d.id)}">
     ${head}
     <div class="adv-district-table-scroll">
     <table>
@@ -690,7 +720,7 @@ function advDistrictHTML(d, alwaysFull, hideHead) {
       ${foot}
     </table>
     </div>
-    ${_advEditMode ? `<button class="adv-add-btn" data-district="${advEscape(d.id)}">
+    ${(_advEditMode && !locked) ? `<button class="adv-add-btn" data-district="${advEscape(d.id)}">
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5.5" stroke="currentColor" stroke-width="1.1"/><path d="M6 3v6M3 6h6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
         Añadir candidatura</button>` : ''}
     ${hidden > 0 ? `<button class="adv-more-btn" data-district="${advEscape(d.id)}">▼ Ver ${hidden} candidatura${hidden === 1 ? '' : 's'} más</button>` : ''}
@@ -707,7 +737,8 @@ function advCountEdits() {
       + Object.keys(e.votes || {}).length
       + (e.removed?.length || 0)
       + (e.order ? 1 : 0), 0)
-    + Object.keys(_advPartyColors).length;
+    + Object.keys(_advPartyColors).length
+    + _advLocks.size;
 }
 
 function advEditsFor(districtId) {
@@ -779,7 +810,7 @@ function advComputePristine() {
   if (!_advParties) { _advPristine = null; return; }
   try {
     const parties = [..._advParties.parties, ...Object.values(_advCustomParties)];
-    _advPristine = advCalculate({ ..._advParties, parties, rows: advSelectedRows() }, _advConfig, null);
+    _advPristine = advCalculate({ ..._advParties, parties, rows: advSelectedRows() }, _advConfig, null, null);
   } catch (e) {
     _advPristine = null;
   }
@@ -892,6 +923,31 @@ function advOpenAddParty(districtId, anchorBtn) {
   }), 0);
 }
 
+/* ── Bloqueo de circunscripciones ──────────────────────────── */
+
+/**
+ * Alterna el bloqueo de una circunscripción. Una bloqueada conserva sus
+ * escaños cuando cambia el reparto y no admite cambios en sus datos.
+ */
+function advToggleLock(districtId) {
+  if (_advLocks.has(districtId)) _advLocks.delete(districtId);
+  else _advLocks.add(districtId);
+  advRun();
+}
+
+/** Bloquea o desbloquea de una vez todas las circunscripciones de una comunidad. */
+function advToggleCcaaLock(ccaaName) {
+  const level = _advConfig?.circunscripcion;
+  const members = (_advResult?.districts || []).filter(d =>
+    (level === 'ccaa' ? d.name : (d.ccaaName || d.name)) === ccaaName);
+  if (!members.length) return;
+
+  // Si ya lo estaban todas se sueltan; si no, se bloquean las que falten.
+  const allLocked = members.every(d => _advLocks.has(d.id));
+  members.forEach(d => allLocked ? _advLocks.delete(d.id) : _advLocks.add(d.id));
+  advRun();
+}
+
 /** Reordenar filas arrastrando, como en la tabla de la calculadora básica. */
 function advAttachRowDrag(scope) {
   scope.querySelectorAll('.adv-drag-handle').forEach(handle => {
@@ -954,6 +1010,7 @@ function advResetEdits() {
   _advEdits = {};
   _advCustomParties = {};
   _advPartyColors = {};
+  _advLocks = new Set();
   advRun();
 }
 
@@ -1094,6 +1151,20 @@ function advAttachResultHandlers() {
 
   selectAll('#adv-results .adv-add-btn').forEach(btn => {
     btn.addEventListener('click', () => advOpenAddParty(btn.dataset.district, btn));
+  });
+
+  selectAll('#adv-results .adv-lock[data-lock-district]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      advToggleLock(btn.dataset.lockDistrict);
+    });
+  });
+
+  selectAll('#adv-results .adv-lock[data-lock-ccaa]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      advToggleCcaaLock(btn.dataset.lockCcaa);
+    });
   });
 
   const results = select('#adv-results');

@@ -932,3 +932,42 @@ tr.drag-over-below td { box-shadow: inset 0 -2px 0 var(--accent); }
 /* Aviso de edición sobre los resultados: informativo, sin controles. */
 .adv-editbar[hidden] { display: none; }
 .adv-editbar { padding: 7px 12px; }
+
+/* ── BLOQUEO DE CIRCUNSCRIPCIONES ────────────────────────────
+   Una circunscripción bloqueada conserva sus escaños cuando cambia el
+   reparto y no admite cambios en sus datos. El candado está siempre a la
+   vista, no sólo al editar, porque afecta al reparto de escaños. */
+
+.adv-lock {
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 1px 4px;
+  font-size: 0.78rem;
+  line-height: 1.3;
+  opacity: 0.4;
+  transition: opacity var(--transition), background var(--transition), border-color var(--transition);
+}
+.adv-lock:hover { opacity: 1; background: var(--accent-pale); border-color: var(--accent); }
+.adv-lock.on { opacity: 1; background: var(--accent-pale); border-color: var(--accent); }
+.adv-lock.partial { opacity: 0.85; border-color: var(--border); border-style: dashed; }
+
+.adv-ccaa-headrow { display: flex; align-items: center; }
+.adv-ccaa-headrow .adv-ccaa-header { flex: 1; min-width: 0; }
+.adv-ccaa-lock { margin: 0 10px 0 2px; }
+
+/* Una circunscripción bloqueada se distingue de un vistazo */
+.adv-district.adv-locked > .adv-district-head {
+  background: var(--accent-pale);
+  border-left: 3px solid var(--accent);
+}
+.adv-district.adv-locked .adv-district-name::after {
+  content: ' · fijada';
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--accent);
+  font-style: italic;
+}
+.adv-ccaa.adv-locked > .adv-ccaa-headrow .adv-ccaa-header { border-left-color: var(--accent); }
