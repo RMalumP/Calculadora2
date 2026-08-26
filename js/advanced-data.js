@@ -85,30 +85,71 @@ function _advCellNum(rows, r, c) {
 
 /* ── Descarga desde Google Sheets ──────────────────────────── */
 
-async function advFetchTable(gid) {
-  const url = `https://docs.google.com/spreadsheets/d/${ADV_SHEET_ID}/gviz/tq?tqx=out:json` + (gid != null ? `&gid=${gid}` : '');
-  let res;
-  try {
-    res = await fetch(url);
-  } catch (e) {
-    throw new Error('No se pudo conectar con Google Sheets. Comprueba tu conexión a internet.');
-  }
-  if (!res.ok) {
-    throw new Error(`Google Sheets respondió con error ${res.status}. Comprueba que la hoja esté compartida como "Cualquier persona con el enlace puede ver".`);
-  }
-  const text = await res.text();
-  const match = text.match(/setResponse\(([\s\S]*)\);?\s*$/);
-  if (!match) throw new Error('No se pudo interpretar la respuesta de Google Sheets.');
-  let json;
-  try {
-    json = JSON.parse(match[1]);
-  } catch (e) {
-    throw new Error('Respuesta de Google Sheets con formato inesperado.');
-  }
-  if (json.status === 'error') {
-    throw new Error(json.errors?.[0]?.detailed_message || 'Error al leer la hoja de cálculo.');
-  }
-  return json.table;
+let _advJsonpSeq = 0;
+
+/** Plazo máximo de espera de la respuesta de Google Sheets, en milisegundos. */
+let ADV_FETCH_TIMEOUT_MS = 20000;
+
+/**
+ * Carga la hoja mediante JSONP (etiqueta <script>).
+ *
+ * El endpoint gviz de Google no envía cabeceras CORS, así que fetch() falla
+ * al abrir el archivo desde el disco (origen "null") o desde cualquier
+ * dominio distinto. JSONP es el mecanismo para el que está diseñado —de ahí
+ * que envuelva la respuesta en google.visualization.Query.setResponse()— y
+ * funciona igual con file:// que servido desde un dominio.
+ */
+function advFetchTable(gid, timeoutMs = ADV_FETCH_TIMEOUT_MS) {
+  return new Promise((resolve, reject) => {
+    const cb = `_advGvizCb${Date.now()}_${_advJsonpSeq++}`;
+    const url = `https://docs.google.com/spreadsheets/d/${ADV_SHEET_ID}/gviz/tq` +
+                `?tqx=out:json;responseHandler:${cb}` +
+                (gid != null ? `&gid=${encodeURIComponent(gid)}` : '');
+
+    const script = document.createElement('script');
+    let settled = false;
+
+    const NOT_PUBLIC =
+      'Google Sheets no ha devuelto datos. Lo más habitual es que la hoja no sea pública: ' +
+      'ábrela, pulsa «Compartir» y en «Acceso general» elige «Cualquier usuario que tenga el enlace» con permiso de Lector.';
+
+    const cleanup = () => {
+      clearTimeout(timer);
+      delete window[cb];
+      script.remove();
+    };
+    const fail = msg => { if (settled) return; settled = true; cleanup(); reject(new Error(msg)); };
+
+    // Si la hoja no es pública, Google devuelve una página de acceso en HTML.
+    // La etiqueta la descarga igualmente y dispara "load", pero nunca llega a
+    // invocar el callback: eso avisa al instante sin esperar al plazo.
+    script.onload = () => setTimeout(() => fail(NOT_PUBLIC), 0);
+
+    // Red de seguridad por si "load" no llega a dispararse.
+    const timer = setTimeout(() => fail(NOT_PUBLIC), timeoutMs);
+
+    window[cb] = payload => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      if (!payload || payload.status === 'error') {
+        const err = payload?.errors?.[0];
+        return reject(new Error(
+          err?.detailed_message?.replace(/<[^>]*>/g, '') || err?.message || 'Error al leer la hoja de cálculo.'
+        ));
+      }
+      if (!payload.table) return reject(new Error('La respuesta de Google Sheets no contiene ninguna tabla.'));
+      resolve(payload.table);
+    };
+
+    script.onerror = () => fail(
+      'No se pudo contactar con Google Sheets. Comprueba tu conexión a internet ' +
+      'y que ninguna extensión del navegador esté bloqueando docs.google.com.'
+    );
+
+    script.src = url;
+    document.head.appendChild(script);
+  });
 }
 
 /* ── Parseo de la hoja a un modelo normalizado ─────────────── */

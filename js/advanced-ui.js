@@ -74,10 +74,19 @@ async function advLoadElection(force) {
     advRun();
   } catch (err) {
     _advLoaded = false;
+    const sheetUrl = `https://docs.google.com/spreadsheets/d/${ADV_SHEET_ID}/edit`;
     advRenderStatus(
-      `<div class="adv-notice error"><strong>No se pudieron cargar los datos.</strong><br>${advEscape(err.message)}</div>` +
-      `<div class="adv-notice info">La hoja debe estar compartida como <em>«Cualquier persona con el enlace · Lector»</em> para que la calculadora pueda leerla.</div>`
+      `<div class="adv-notice error">
+         <strong>No se pudieron cargar los datos.</strong><br>${advEscape(err.message)}
+       </div>
+       <div class="adv-notice info">
+         <a href="${sheetUrl}" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600">Abrir la hoja de cálculo</a>
+         para revisar los permisos, y después
+         <button type="button" id="adv-retry" class="adv-mini-btn" style="border-color:var(--border);color:var(--accent)">Reintentar</button>
+       </div>`
     );
+    select('#adv-retry')?.addEventListener('click', () => advLoadElection(true));
+    updateText(select('#adv-subtitle'), 'Sin datos cargados');
   } finally {
     _advLoading = false;
   }
