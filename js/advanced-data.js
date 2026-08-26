@@ -9,8 +9,36 @@ const ADV_SHEET_ID = '1pjggxoPWBxMo9HSN0kVo-HFPvMxYj1g7x8-AMlu6rCM';
 // Se incrementa con cada cambio relevante del parser. Sirve para comprobar a
 // simple vista, desde el panel de diagnóstico o la consola, si el navegador
 // está sirviendo una versión en caché de este archivo.
-const ADV_PARSER_VERSION = '2024-header-autodetect-2';
+const ADV_PARSER_VERSION = '2025-reconstruccion-de-cabecera';
 console.log('[Calculadora avanzada] advanced-data.js versión', ADV_PARSER_VERSION);
+
+/**
+ * Disposición de la hoja: 6 filas de cabecera y datos a partir de la 7.
+ *
+ * El endpoint JSON de Google Sheets no devuelve la hoja tal cual: consume
+ * las primeras filas como cabecera (su texto acaba en cols[].label, no en
+ * las filas) y asigna un tipo a cada columna, convirtiendo en null el texto
+ * que no encaje con ese tipo. En una columna de votos, que es numérica, eso
+ * borra "PARTIDO POPULAR", "PP" y "Votos". Por eso la cabecera se
+ * reconstruye pidiendo la hoja con distintos valores de headers=N y
+ * restando cada etiqueta de la siguiente: la diferencia es el contenido de
+ * la fila N.
+ */
+const ADV_SHEET_ROWS = { barrera1: 1, tipo: 2, circunscripcion: 3, subtipo: 4, siglas: 5, cabecera: 6 };
+
+/**
+ * Orden fijo de las columnas de metadatos (A..T) según la hoja. Se usa como
+ * base y se corrige con el texto de cabecera cuando este se puede leer.
+ */
+const ADV_FIXED_COLS = {
+  anio: 0, mes: 1, dia: 2, ccaaCode: 3, ccaaName: 4, provCode: 5, provName: 6,
+  seatsBase: 7, poblacion: 8, mesas: 9, censoSinCera: 10, censoCera: 11,
+  censoTotal: 12, votantesCer: 13, votantesCera: 14, votantesTotal: 15,
+  votosValidos: 16, votosCandidaturas: 17, votosBlanco: 18, votosNulos: 19
+};
+
+/** Primera columna de partidos: a partir de aquí van en pares votos/diputados. */
+const ADV_FIRST_PARTY_COL = 20;
 
 /**
  * Registro de hojas (elecciones) disponibles.
@@ -105,12 +133,15 @@ let ADV_FETCH_TIMEOUT_MS = 20000;
  * que envuelva la respuesta en google.visualization.Query.setResponse()— y
  * funciona igual con file:// que servido desde un dominio.
  */
-function advFetchTable(gid, timeoutMs = ADV_FETCH_TIMEOUT_MS) {
+function advFetchTable(gid, opts = {}) {
+  const { headers, limit, timeoutMs = ADV_FETCH_TIMEOUT_MS } = opts;
   return new Promise((resolve, reject) => {
     const cb = `_advGvizCb${Date.now()}_${_advJsonpSeq++}`;
     const url = `https://docs.google.com/spreadsheets/d/${ADV_SHEET_ID}/gviz/tq` +
                 `?tqx=out:json;responseHandler:${cb}` +
-                (gid != null ? `&gid=${encodeURIComponent(gid)}` : '');
+                (gid != null ? `&gid=${encodeURIComponent(gid)}` : '') +
+                (headers != null ? `&headers=${encodeURIComponent(headers)}` : '') +
+                (limit != null ? `&tq=${encodeURIComponent('select * limit ' + limit)}` : '');
 
     const script = document.createElement('script');
     let settled = false;
@@ -158,7 +189,57 @@ function advFetchTable(gid, timeoutMs = ADV_FETCH_TIMEOUT_MS) {
   });
 }
 
+/**
+ * Descarga la hoja las veces necesarias para poder reconstruir su cabecera.
+ *
+ * Se pide una vez con headers=5 (trae los datos) y otras cuatro con
+ * headers=1..4 limitadas a una fila, que son muy ligeras y sólo se usan por
+ * sus cols[].label. Restando cada etiqueta de la siguiente se recupera el
+ * contenido exacto de cada fila de cabecera, que de otro modo Google no
+ * devuelve.
+ */
+async function advFetchElection(gid) {
+  const dataHeaders = ADV_SHEET_ROWS.siglas; // 5
+  const [dataTable, ...labelTables] = await Promise.all([
+    advFetchTable(gid, { headers: dataHeaders }),
+    ...[1, 2, 3, 4].map(n =>
+      advFetchTable(gid, { headers: n, limit: 1 }).catch(() => null))
+  ]);
+  const labelsByHeaderCount = { 5: dataTable };
+  [1, 2, 3, 4].forEach((n, i) => { labelsByHeaderCount[n] = labelTables[i]; });
+  return { dataTable, labelsByHeaderCount };
+}
+
 /* ── Parseo de la hoja a un modelo normalizado ─────────────── */
+
+/** Colapsa espacios y saltos de línea; las etiquetas de gviz los mezclan. */
+function _advSquash(s) {
+  return String(s ?? '').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Devuelve una función (filaDeLaHoja, columna) → texto, reconstruyendo cada
+ * fila de cabecera a partir de las etiquetas: la etiqueta con headers=N
+ * contiene las filas 1..N unidas, así que restarle la de headers=N-1 deja
+ * justo el contenido de la fila N.
+ */
+function _advHeaderRowReader(labelsByHeaderCount) {
+  const labelAt = (n, c) =>
+    _advSquash(labelsByHeaderCount?.[n]?.cols?.[c]?.label ?? '');
+
+  return (sheetRow, col) => {
+    if (!labelsByHeaderCount?.[sheetRow]) return '';
+    const cur = labelAt(sheetRow, col);
+    if (sheetRow <= 1) return cur;
+    // Sin la etiqueta de la fila anterior no se puede aislar esta: devolver la
+    // unida mezclaría el contenido de varias filas en una sola.
+    if (!labelsByHeaderCount[sheetRow - 1]) return '';
+    const prev = labelAt(sheetRow - 1, col);
+    if (!prev) return cur;                       // nada por encima: la etiqueta es esta fila
+    if (cur.startsWith(prev)) return cur.slice(prev.length).trim();
+    return '';                                    // unión inesperada: mejor vacío que texto mezclado
+  };
+}
 
 /**
  * Localiza la fila de cabecera ("Votos"/"Diputados" repetidos por partido)
@@ -184,109 +265,107 @@ function _advFindHeaderRow(rows) {
   return { headerRow: bestCount > 0 ? best : 5, scan, found: bestCount > 0 };
 }
 
-function advParseTable(table) {
-  const rows = table.rows || [];
+function advParseTable(table, labelsByHeaderCount) {
+  const rows = table?.rows || [];
+  const cols = table?.cols || [];
+  const headerText = _advHeaderRowReader(labelsByHeaderCount);
 
-  // El resto de filas (metadatos, nombres y siglas de partido) se ubican en
-  // relación a la fila de cabecera, siguiendo la disposición original de la
-  // hoja: 5 filas de metadatos, luego nombres, luego siglas, luego cabecera.
-  const headerScan = _advFindHeaderRow(rows);
-  const headerRow  = headerScan.headerRow;
-  const nameRow    = headerRow - 2;
-  const siglasRow  = headerRow - 1;
-  const barrera1Row = headerRow - 5;
-  const tipoRow     = headerRow - 4;
-  const circRow     = headerRow - 3;
+  // Dos escenarios posibles:
+  //  - gviz: el texto de cabecera viaja en cols[].label y se reconstruye.
+  //  - crudo (CSV, pruebas): el texto sigue en las propias filas.
+  // Se prefiere el reconstruido y se recurre al de las filas si está vacío.
+  const headerScan  = _advFindHeaderRow(rows);
+  const rawHeaderRow = headerScan.found ? headerScan.headerRow : -1;
+  const rawAt = (sheetRow, col) => rawHeaderRow < 0 ? ''
+    : _advCellText(rows, rawHeaderRow - (ADV_SHEET_ROWS.cabecera - sheetRow), col);
+  const cell = (sheetRow, col) => headerText(sheetRow, col) || rawAt(sheetRow, col);
 
-  // El nivel de una barrera se expresa respecto a la circunscripción: si la hoja
-  // indica el mismo ámbito que la circunscripción, es una barrera de circunscripción.
-  const level = _advDetectLevel(_advCellText(rows, circRow, 2)) || 'provincia';
+  let numCols = cols.length;
+  rows.forEach(r => { if (r?.c?.length > numCols) numCols = r.c.length; });
+
+  /* ── Metadatos de la elección ── */
+
+  const level = _advDetectLevel(cell(ADV_SHEET_ROWS.circunscripcion, 2)) || 'provincia';
   const asBarrierLevel = l => (!l || l === level || l === 'provincia') ? 'circunscripcion' : l;
 
   const meta = {
-    tipo:    _advCellText(rows, tipoRow, 0) || 'Generales',
-    subtipo: _advCellText(rows, nameRow, 0) || '',
-    pais:    _advCellText(rows, siglasRow, 1) || 'España',
+    tipo:    cell(ADV_SHEET_ROWS.tipo, 0) || 'Generales',
+    subtipo: cell(ADV_SHEET_ROWS.subtipo, 0) || '',
+    pais:    cell(ADV_SHEET_ROWS.siglas, 1) || 'España',
     circunscripcionDefault: level,
     barrera1: {
-      nivel: asBarrierLevel(_advDetectLevel(_advCellText(rows, barrera1Row, 2))),
-      valor: _advParsePercent(_advCellText(rows, barrera1Row, 3))
+      nivel: asBarrierLevel(_advDetectLevel(cell(ADV_SHEET_ROWS.barrera1, 2))),
+      valor: _advParsePercent(cell(ADV_SHEET_ROWS.barrera1, 3))
     },
     barrera2: null
   };
-  const b2nivel = _advDetectLevel(_advCellText(rows, tipoRow, 2));
-  if (b2nivel) meta.barrera2 = { nivel: asBarrierLevel(b2nivel), valor: _advParsePercent(_advCellText(rows, tipoRow, 3)) };
+  const b2nivel = _advDetectLevel(cell(ADV_SHEET_ROWS.tipo, 2));
+  if (b2nivel) {
+    meta.barrera2 = { nivel: asBarrierLevel(b2nivel), valor: _advParsePercent(cell(ADV_SHEET_ROWS.tipo, 3)) };
+  }
 
-  let numCols = (rows[headerRow]?.c?.length) || 0;
-  rows.slice(0, headerRow + 1).forEach(r => { if (r?.c?.length > numCols) numCols = r.c.length; });
+  /* ── Columnas de metadatos ── */
 
-  const metaCols = {};
-  const parties = [];
-
+  // Se parte del orden fijo documentado de la hoja y se corrige con el texto
+  // de la fila de cabecera cuando este se puede leer (en gviz sólo sobrevive
+  // el de las columnas de texto, como los nombres de provincia y comunidad).
+  const metaCols = { ...ADV_FIXED_COLS };
+  const headerRowTexts = [];
   for (let c = 0; c < numCols; c++) {
-    const h = _advNormalize(_advCellText(rows, headerRow, c));
-    if (!h) continue;
+    const raw = cell(ADV_SHEET_ROWS.cabecera, c);
+    headerRowTexts.push(raw);
+    const h = _advNormalize(raw);
+    if (!h || h === 'votos' || h === 'diputados') continue;
 
-    if (h === 'votos') {
-      const name = _advCellText(rows, nameRow, c) || _advCellText(rows, siglasRow, c) || `Partido ${parties.length + 1}`;
-      const siglas = _advCellText(rows, siglasRow, c) || '';
-      parties.push({ name, siglas, votesCol: c, seatsCol: c + 1, key: siglas || name });
-      continue;
-    }
-    if (h === 'diputados') continue; // se procesa junto al "Votos" de su misma columna par
-
-    if (h.includes('codigo') && (h.includes('provincia') || h.includes('comunidad'))) {
-      // La hoja repite una etiqueta de "código" para la CCAA y para la provincia.
-      // En vez de depender del texto exacto de la columna de nombre que la
-      // acompaña (frágil ante variaciones de redacción), se asume que el
-      // nombre va siempre en la columna inmediatamente a la derecha del
-      // código, y sólo se usa el texto de esa columna para decidir si el
-      // par código+nombre es de comunidad o de provincia.
-      const nextH = _advNormalize(_advCellText(rows, headerRow, c + 1));
-      const isCcaa = nextH.includes('comunidad') || nextH.includes('autonom') ||
-        (!nextH.includes('provincia') && metaCols.ccaaCode === undefined);
-      if (isCcaa) { metaCols.ccaaCode = c; if (metaCols.ccaaName === undefined) metaCols.ccaaName = c + 1; }
-      else        { metaCols.provCode = c; if (metaCols.provName === undefined) metaCols.provName = c + 1; }
-      continue;
-    }
+    if (h.includes('codigo') && (h.includes('provincia') || h.includes('comunidad'))) continue;
     if (h.includes('diputado') && (h.includes('provincia') || h.includes('circunscripcion'))) {
       metaCols.seatsBase = c;
       continue;
     }
-    if (ADV_HEADER_MAP[h] && metaCols[ADV_HEADER_MAP[h]] === undefined) {
-      metaCols[ADV_HEADER_MAP[h]] = c;
-    }
+    if (h.includes('provincia')) { metaCols.provName = c; metaCols.provCode = c - 1; continue; }
+    if (h.includes('comunidad') || h.includes('autonom')) { metaCols.ccaaName = c; metaCols.ccaaCode = c - 1; continue; }
+    if (ADV_HEADER_MAP[h] !== undefined) metaCols[ADV_HEADER_MAP[h]] = c;
   }
 
-  // Red de seguridad: si por alguna razón no se detectó el nombre de
-  // provincia/comunidad por adyacencia, se busca por texto de cabecera.
-  if (metaCols.provName === undefined) {
-    for (let c = 0; c < numCols; c++) {
-      const h = _advNormalize(_advCellText(rows, headerRow, c));
-      if (h.includes('provincia') && !h.includes('codigo') && !h.includes('diputado')) { metaCols.provName = c; break; }
-    }
-  }
-  if (metaCols.ccaaName === undefined) {
-    for (let c = 0; c < numCols; c++) {
-      const h = _advNormalize(_advCellText(rows, headerRow, c));
-      if ((h.includes('comunidad') || h.includes('autonom')) && !h.includes('codigo')) { metaCols.ccaaName = c; break; }
-    }
+  /* ── Partidos: pares votos/diputados desde la primera columna de partido ── */
+
+  // El final del bloque de metadatos marca dónde empiezan los partidos.
+  const lastMetaCol = Math.max(...Object.values(metaCols).filter(n => Number.isFinite(n)));
+  const firstPartyCol = Math.max(lastMetaCol + 1, ADV_FIRST_PARTY_COL);
+
+  const parties = [];
+  for (let c = firstPartyCol; c + 1 <= numCols; c += 2) {
+    let name     = cell(ADV_SHEET_ROWS.subtipo, c);
+    const siglas = cell(ADV_SHEET_ROWS.siglas, c);
+    // Si no se pudo separar nombre de siglas, se usa la etiqueta unida como
+    // nombre: menos preciso, pero legible y sin duplicar el texto.
+    if (!name && !siglas) name = _advSquash(cols[c]?.label ?? '');
+    const hasVotes = rows.some(r => {
+      const o = (r?.c && r.c[c]) || null;
+      return o && typeof o.v === 'number' && o.v > 0;
+    });
+    if (!name && !siglas && !hasVotes) continue;
+    parties.push({
+      name:   name || siglas || `Partido ${parties.length + 1}`,
+      siglas: siglas || '',
+      votesCol: c, seatsCol: c + 1,
+      key: siglas || name || `col${c}`
+    });
   }
 
-  const debug = {
-    headerRowIndex: headerRow,
-    headerRowFound: headerScan.found,
-    headerRowTexts: Array.from({ length: numCols }, (_, c) => _advCellText(rows, headerRow, c)).filter(Boolean),
-    metaCols: { ...metaCols },
-    numDataRowsScanned: Math.max(0, rows.length - (headerRow + 1)),
-    totalRowsFromSheet: rows.length,
-    rowScan: headerScan.scan
+  /* ── Filas de datos ── */
+
+  // Se reconocen por contenido en vez de por posición: gviz puede haber
+  // consumido un número variable de filas de cabecera, así que las que
+  // queden por delante se descartan solas al no tener año ni provincia.
+  const isDataRow = r => {
+    const year = _advCellNum(rows, r, metaCols.anio);
+    return year >= 1800 && year <= 2200 && !!_advCellText(rows, r, metaCols.provName);
   };
 
   const dataRows = [];
-  for (let r = headerRow + 1; r < rows.length; r++) {
-    const provName = _advCellText(rows, r, metaCols.provName);
-    if (!provName) continue;
+  for (let r = 0; r < rows.length; r++) {
+    if (!isDataRow(r)) continue;
     dataRows.push({
       anio: _advCellText(rows, r, metaCols.anio),
       mes:  _advCellText(rows, r, metaCols.mes),
@@ -294,7 +373,7 @@ function advParseTable(table) {
       ccaaCode: _advCellText(rows, r, metaCols.ccaaCode),
       ccaaName: _advCellText(rows, r, metaCols.ccaaName),
       provCode: _advCellText(rows, r, metaCols.provCode),
-      provName,
+      provName: _advCellText(rows, r, metaCols.provName),
       seatsBase:     _advCellNum(rows, r, metaCols.seatsBase),
       poblacion:     _advCellNum(rows, r, metaCols.poblacion),
       censoTotal:    _advCellNum(rows, r, metaCols.censoTotal),
@@ -310,6 +389,28 @@ function advParseTable(table) {
     });
   }
 
+  const debug = {
+    parserVersion: ADV_PARSER_VERSION,
+    totalRowsFromSheet: rows.length,
+    numCols,
+    headerFromLabels: !!labelsByHeaderCount,
+    rawHeaderRowIndex: rawHeaderRow,
+    reconstructedHeader: {
+      barrera1: [cell(1, 2), cell(1, 3)],
+      tipo:     cell(2, 0),
+      circ:     cell(3, 2),
+      subtipo:  cell(4, 0),
+      pais:     cell(5, 1)
+    },
+    firstPartyCol,
+    partySample: parties.slice(0, 4).map(p => `${p.siglas || '—'} / ${p.name} (col ${p.votesCol})`),
+    numParties: parties.length,
+    headerRowTexts: headerRowTexts.filter(Boolean),
+    metaCols: { ...metaCols },
+    numDataRowsScanned: rows.length,
+    rowScan: headerScan.scan
+  };
+
   return {
     meta,
     parties: parties.map(p => ({ key: p.key, name: p.name, siglas: p.siglas })),
@@ -323,8 +424,8 @@ function advParseTable(table) {
 async function advGetElectionData(electionKey) {
   if (_advCache[electionKey]) return _advCache[electionKey];
   const cfg = ADV_ELECTIONS.find(e => e.key === electionKey) || ADV_ELECTIONS[0];
-  const table = await advFetchTable(cfg.gid);
-  const data = advParseTable(table);
+  const { dataTable, labelsByHeaderCount } = await advFetchElection(cfg.gid);
+  const data = advParseTable(dataTable, labelsByHeaderCount);
   _advCache[electionKey] = data;
   return data;
 }
