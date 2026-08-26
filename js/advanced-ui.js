@@ -1459,6 +1459,93 @@ function advInitEditBar() {
   advRefreshEditBar();
 }
 
+/* ── Guardar y cargar la sesión ────────────────────────────── */
+
+/**
+ * Lo decidido en esta pantalla, sin los datos electorales: la hoja de cálculo
+ * se vuelve a descargar al cargar la sesión, así que guardarla sólo haría el
+ * archivo más grande y lo dejaría anticuado. Se guarda qué elección era, para
+ * poder reponerla, y encima de ella la configuración, las ediciones de esta
+ * sesión, las candidaturas añadidas, los colores y los candados.
+ */
+function advSessionSnapshot() {
+  return {
+    app: 'calculadora-electoral',
+    parte: 'avanzada',
+    version: 1,
+    guardadoEn: new Date().toISOString(),
+    eleccion: select('#adv-election')?.value || '',
+    config: _advConfig,
+    ediciones: _advEdits,
+    candidaturas: _advCustomParties,
+    colores: _advPartyColors,
+    candados: _advLocks,
+    vista: {
+      colapsadas: [..._advCollapsed],
+      desplegadas: [..._advExpandedDistricts],
+      edicion: _advEditMode
+    }
+  };
+}
+
+function advSaveSession() {
+  if (!_advLoaded || !_advConfig) {
+    alert('Todavía no hay datos cargados que guardar.');
+    return;
+  }
+  const eleccion = (select('#adv-election')?.value || 'sesion').replace(/[^\w-]+/g, '-');
+  sesionDescargar(JSON.stringify(advSessionSnapshot(), null, 2),
+    `calculadora_avanzada_${eleccion}_${sesionMarcaDeTiempo()}.json`,
+    'application/json;charset=utf-8');
+}
+
+/** Repone una sesión guardada sobre los datos de la elección que indique. */
+async function advApplySession(s) {
+  if (!s || s.app !== 'calculadora-electoral' || s.parte !== 'avanzada') {
+    throw new Error('El archivo no es una sesión de la calculadora avanzada.');
+  }
+
+  const eleccion = select('#adv-election');
+  const cambiaEleccion = !!s.eleccion && eleccion && eleccion.value !== s.eleccion;
+  if (cambiaEleccion) eleccion.value = s.eleccion;
+  // Recargar vacía los cambios de sesión, así que se hace antes de reponerlos.
+  if (cambiaEleccion || !_advLoaded) await advLoadElection(false);
+  if (!_advLoaded || !_advParties) {
+    throw new Error('No se han podido cargar los datos de la elección guardada.');
+  }
+
+  _advEdits         = s.ediciones    || {};
+  _advCustomParties = s.candidaturas || {};
+  _advPartyColors   = s.colores      || {};
+  _advLocks         = s.candados     || {};
+  _advCollapsed         = new Set(s.vista?.colapsadas  || []);
+  _advExpandedDistricts = new Set(s.vista?.desplegadas || []);
+  _advEditMode          = !!s.vista?.edicion;
+
+  // La configuración por defecto rellena lo que falte si el archivo viene de
+  // una versión anterior, sin alguna de las opciones.
+  _advConfig = { ...advDefaultConfig(_advParties.meta), ...(s.config || {}) };
+  advSyncConfigToForm();
+  advRun();
+}
+
+function advInitSessionButtons() {
+  const file = select('#adv-session-file');
+  select('#adv-save-btn')?.addEventListener('click', advSaveSession);
+  select('#adv-load-btn')?.addEventListener('click', () => file?.click());
+
+  file?.addEventListener('change', async () => {
+    const elegido = file.files?.[0];
+    file.value = '';   // así se puede volver a elegir el mismo archivo
+    if (!elegido) return;
+    try {
+      await advApplySession(JSON.parse(await elegido.text()));
+    } catch (err) {
+      alert(`No se ha podido cargar la sesión.\n\n${err.message}`);
+    }
+  });
+}
+
 /* ── Interacción ───────────────────────────────────────────── */
 
 function advAttachResultHandlers() {
@@ -1554,6 +1641,7 @@ function advInit() {
   advInitEditBar();
   advInitExceptions();
   advInitMetaDialog();
+  advInitSessionButtons();
 
   ['#adv-year', '#adv-level', '#adv-formula', '#adv-b1-on', '#adv-b1-level', '#adv-b1-val',
    '#adv-b2-on', '#adv-b2-level', '#adv-b2-val', '#adv-blanco',

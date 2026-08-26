@@ -75,6 +75,20 @@ const TAB_SLUGS = {
 };
 const SLUG_TO_TAB = Object.fromEntries(Object.entries(TAB_SLUGS).map(([k, v]) => [v, k]));
 
+/**
+ * Los botones de guardar de la cabecera cambian con la pestaña, porque cada
+ * una guarda una cosa distinta: la calculadora y el pactómetro se llevan una
+ * copia de la página; la avanzada, sólo los datos de su sesión, porque los
+ * resultados los reconstruye a partir de la hoja de cálculo. La teoría no
+ * tiene nada que guardar.
+ */
+function updateHeaderActions(tabName) {
+  const guardarPagina = tabName === 'calculator' || tabName === 'pactometer';
+  const el = select('#save-html-btn');
+  if (el) el.hidden = !guardarPagina;
+  selectAll('.adv-session-btn').forEach(b => { b.hidden = tabName !== 'advanced'; });
+}
+
 function switchTab(tabName, updateHash = true) {
   selectAll('.tab-content').forEach(t => t.classList.remove('active'));
   selectAll('.tab').forEach(b => b.classList.remove('active'));
@@ -82,6 +96,7 @@ function switchTab(tabName, updateHash = true) {
   if (!TAB_SLUGS[tabName] || !select(`#${tabId}`)) return;
   select(`#${tabId}`)?.classList.add('active');
   select(`.tab[data-tab="${tabName}"]`)?.classList.add('active');
+  updateHeaderActions(tabName);
 
   if (updateHash) {
     const slug = TAB_SLUGS[tabName];
@@ -179,14 +194,14 @@ function getBonusMode() {
   return select('#bonus-mode-value')?.value || 'included';
 }
 
-function setBonusMode(mode) {
+function setBonusMode(mode, recalcular = true) {
   const bonusModeValue = select('#bonus-mode-value');
   if (bonusModeValue) bonusModeValue.value = mode;
   toggleClass(select('#bonus-btn-included'), 'bonus-active', mode === 'included');
   toggleClass(select('#bonus-btn-extra'), 'bonus-active', mode !== 'included');
   setDisplay(select('#bonus-desc-included'), mode === 'included');
   setDisplay(select('#bonus-desc-extra'), mode !== 'included');
-  calculate();
+  if (recalcular) calculate();
 }
 
 /* ── NOMBRES DE ESCAÑOS ──────────────────────────────────── */
@@ -333,29 +348,6 @@ function showTheorySystem(systemId) {
   });
 }
 
-/* ── GUARDAR HTML ────────────────────────────────────────── */
-
-function saveHTML() {
-  selectAll('input, select').forEach(el => {
-    if (el.type === 'checkbox' || el.type === 'radio') {
-      el.checked ? el.setAttribute('checked', '') : el.removeAttribute('checked');
-    } else if (el.tagName === 'SELECT') {
-      [...el.options].forEach(opt => opt.selected ? opt.setAttribute('selected', '') : opt.removeAttribute('selected'));
-    } else {
-      el.setAttribute('value', el.value);
-    }
-  });
-
-  const html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  const ts = new Date().toISOString().slice(0, 16).replace('T', '_').replace(':', '-');
-  a.download = 'calculadora_electoral_' + ts + '.html';
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
-
 /* ── DRAG & DROP ─────────────────────────────────────────── */
 
 (function initDragDrop() {
@@ -443,6 +435,11 @@ function saveHTML() {
 document.addEventListener('DOMContentLoaded', function () {
   initTabRouting();
   buildFormulaSelect();
+
+  // Las copias guardadas traen anotado su propio contenido (session.js); el
+  // resto arranca con filas en blanco.
+  if (typeof sesionRecuperar === 'function' && sesionRecuperar(window.CE_SESION)) return;
+
   for (let i = 0; i < 5; i++) addRow();
   addRow('Otros partidos', '', '#474747', true);
   for (let i = 0; i < 5; i++) addPactometerRow();

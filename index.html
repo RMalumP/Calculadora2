@@ -18,14 +18,26 @@
 <header>
   <h1>Calculadora Electoral</h1>
   <span>Sistemas de representación electoral</span>
-  <select id="seat-rename" onchange="updateSeatNames()" style="background:none;border:1px solid #4a3f3a;border-radius:var(--radius);color:#7a6f6a;font-size:0.7rem;padding:3px 6px;cursor:pointer;margin-left:auto;margin-right:8px">
-    <option value="escaños">Escaños</option>
-    <option value="parlamentarios">Parlamentarios</option>
-    <option value="diputados">Diputados</option>
-    <option value="concejales">Concejales</option>
-    <option value="congresistas">Congresistas</option>
-  </select>
-  <button class="save-icon-btn" onclick="saveHTML()" title="Guardar HTML con los datos actuales">💾</button>
+  <div class="header-actions">
+    <select id="seat-rename" onchange="updateSeatNames()">
+      <option value="escaños">Escaños</option>
+      <option value="parlamentarios">Parlamentarios</option>
+      <option value="diputados">Diputados</option>
+      <option value="concejales">Concejales</option>
+      <option value="congresistas">Congresistas</option>
+    </select>
+
+    <!-- Calculadora y pactómetro: copia autónoma de la página. -->
+    <button class="save-icon-btn" id="save-html-btn" onclick="saveHTML()"
+            title="Guardar la calculadora y el pactómetro en un archivo HTML que funciona por sí solo">💾</button>
+
+    <!-- Calculadora avanzada: sólo los datos de la sesión, en un .json. -->
+    <button class="save-icon-btn adv-session-btn" id="adv-save-btn" hidden
+            title="Guardar en un archivo la configuración, las ediciones y los candados de esta sesión">💾 Guardar información</button>
+    <button class="save-icon-btn adv-session-btn" id="adv-load-btn" hidden
+            title="Cargar una sesión guardada">📂 Cargar</button>
+    <input type="file" id="adv-session-file" accept=".json,application/json" hidden>
+  </div>
 </header>
 
 <!-- ══ TABS ══ -->
@@ -62,6 +74,7 @@
 <script src="js/advanced-data.js?v=12"></script>
 <script src="js/advanced-calc.js?v=12"></script>
 <script src="js/advanced-ui.js?v=12"></script>
+<script src="js/session.js"></script>
 <script src="js/ui.js"></script>
 
 </body>
