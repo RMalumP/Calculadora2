@@ -688,10 +688,10 @@ function advDistrictHTML(d, alwaysFull, hideHead) {
       aria-pressed="${locked}">${locked ? '🔒' : '🔓'}</button>`;
 
   const head = hideHead ? '' : `<div class="adv-district-head">
-      ${lockBtn}
       <span class="adv-district-name">${advEscape(d.name)}</span>
       <span class="adv-district-meta">${advNum(d.validVotes)} votos válidos${d.members.length > 1 ? ` · ${d.members.length} provincias` : ''}</span>
       <span class="adv-district-seats">${seatsCell}</span>
+      ${lockBtn}
     </div>`;
 
   // Con la tabla editable conviene ver el total de lo que se está tocando.

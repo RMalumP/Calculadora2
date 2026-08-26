@@ -232,7 +232,7 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  width: 100%;
+  min-width: 0;
   padding: 8px 12px;
   background: #f5ede8;
   border: none;
@@ -244,16 +244,28 @@
 }
 .adv-ccaa-header:hover { background: #edddd6; border-left-color: var(--accent); }
 .adv-ccaa-arrow { color: var(--accent); font-size: 0.72rem; width: 10px; flex-shrink: 0; }
+/* Con una fuente más ancha que la de reserva, el nombre y la etiqueta de la
+   comunidad no deben poder empujar la fila entera a una segunda línea: se
+   recortan con puntos suspensivos en vez de forzar el ancho de la fila. */
 .adv-ccaa-name {
   font-weight: 700;
   font-size: 0.85rem;
   color: var(--accent);
   letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 20px;
 }
 .adv-ccaa-meta {
   font-size: 0.72rem;
   color: var(--text-muted);
   font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 2;
+  min-width: 0;
 }
 .adv-ccaa-seats {
   margin-left: auto;
@@ -954,9 +966,20 @@ tr.drag-over-below td { box-shadow: inset 0 -2px 0 var(--accent); }
 .adv-lock.on { opacity: 1; background: var(--accent-pale); border-color: var(--accent); }
 .adv-lock.partial { opacity: 0.85; border-color: var(--border); border-style: dashed; }
 
-.adv-ccaa-headrow { display: flex; align-items: center; }
-.adv-ccaa-headrow .adv-ccaa-header { flex: 1; min-width: 0; }
+/* nowrap explícito: con esta fila nunca debe caer a una segunda línea, pase
+   lo que pase con el ancho del nombre o de la fuente real cargada. */
+.adv-ccaa-headrow { display: flex; align-items: center; flex-wrap: nowrap; }
+.adv-ccaa-headrow .adv-ccaa-header { flex: 1 1 0%; min-width: 0; }
 .adv-ccaa-lock { margin: 0 10px 0 2px; }
+
+.adv-district-name, .adv-district-meta {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.adv-district-name { flex-shrink: 1; }
+.adv-district-meta { flex-shrink: 2; }
 
 /* Una circunscripción bloqueada se distingue de un vistazo */
 .adv-district.adv-locked > .adv-district-head {
