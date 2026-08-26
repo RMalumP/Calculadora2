@@ -154,31 +154,62 @@ function advFetchTable(gid, timeoutMs = ADV_FETCH_TIMEOUT_MS) {
 
 /* ── Parseo de la hoja a un modelo normalizado ─────────────── */
 
+/**
+ * Localiza la fila de cabecera ("Votos"/"Diputados" repetidos por partido)
+ * en vez de asumirla en una posición fija. La hoja puede tener filas de
+ * más o de menos por encima de la tabla de datos que las asumidas
+ * originalmente (p. ej. si se añade o se borra una fila de metadatos), así
+ * que se localiza buscando la fila con más celdas de texto "Votos" —marca
+ * inequívoca de esa fila— en vez de fiarse de un número de fila fijo.
+ */
+function _advFindHeaderRow(rows) {
+  let best = -1, bestCount = 0;
+  const scanLimit = Math.min(rows.length, 40);
+  for (let r = 0; r < scanLimit; r++) {
+    const width = rows[r]?.c?.length || 0;
+    let count = 0;
+    for (let c = 0; c < width; c++) {
+      if (_advNormalize(_advCellText(rows, r, c)) === 'votos') count++;
+    }
+    if (count > bestCount) { bestCount = count; best = r; }
+  }
+  return bestCount > 0 ? best : 5; // valor de referencia si no se encuentra ninguna
+}
+
 function advParseTable(table) {
   const rows = table.rows || [];
 
+  // El resto de filas (metadatos, nombres y siglas de partido) se ubican en
+  // relación a la fila de cabecera, siguiendo la disposición original de la
+  // hoja: 5 filas de metadatos, luego nombres, luego siglas, luego cabecera.
+  const headerRow  = _advFindHeaderRow(rows);
+  const nameRow    = headerRow - 2;
+  const siglasRow  = headerRow - 1;
+  const barrera1Row = headerRow - 5;
+  const tipoRow     = headerRow - 4;
+  const circRow     = headerRow - 3;
+
   // El nivel de una barrera se expresa respecto a la circunscripción: si la hoja
   // indica el mismo ámbito que la circunscripción, es una barrera de circunscripción.
-  const level = _advDetectLevel(_advCellText(rows, 2, 2)) || 'provincia';
+  const level = _advDetectLevel(_advCellText(rows, circRow, 2)) || 'provincia';
   const asBarrierLevel = l => (!l || l === level || l === 'provincia') ? 'circunscripcion' : l;
 
   const meta = {
-    tipo:    _advCellText(rows, 1, 0) || 'Generales',
-    subtipo: _advCellText(rows, 3, 0) || '',
-    pais:    _advCellText(rows, 4, 1) || 'España',
+    tipo:    _advCellText(rows, tipoRow, 0) || 'Generales',
+    subtipo: _advCellText(rows, nameRow, 0) || '',
+    pais:    _advCellText(rows, siglasRow, 1) || 'España',
     circunscripcionDefault: level,
     barrera1: {
-      nivel: asBarrierLevel(_advDetectLevel(_advCellText(rows, 0, 2))),
-      valor: _advParsePercent(_advCellText(rows, 0, 3))
+      nivel: asBarrierLevel(_advDetectLevel(_advCellText(rows, barrera1Row, 2))),
+      valor: _advParsePercent(_advCellText(rows, barrera1Row, 3))
     },
     barrera2: null
   };
-  const b2nivel = _advDetectLevel(_advCellText(rows, 1, 2));
-  if (b2nivel) meta.barrera2 = { nivel: asBarrierLevel(b2nivel), valor: _advParsePercent(_advCellText(rows, 1, 3)) };
+  const b2nivel = _advDetectLevel(_advCellText(rows, tipoRow, 2));
+  if (b2nivel) meta.barrera2 = { nivel: asBarrierLevel(b2nivel), valor: _advParsePercent(_advCellText(rows, tipoRow, 3)) };
 
-  const nameRow = 3, siglasRow = 4, headerRow = 5;
   let numCols = (rows[headerRow]?.c?.length) || 0;
-  rows.slice(0, 6).forEach(r => { if (r?.c?.length > numCols) numCols = r.c.length; });
+  rows.slice(0, headerRow + 1).forEach(r => { if (r?.c?.length > numCols) numCols = r.c.length; });
 
   const metaCols = {};
   const parties = [];
@@ -237,11 +268,11 @@ function advParseTable(table) {
     headerRowIndex: headerRow,
     headerRowTexts: Array.from({ length: numCols }, (_, c) => _advCellText(rows, headerRow, c)).filter(Boolean),
     metaCols: { ...metaCols },
-    numDataRowsScanned: Math.max(0, rows.length - 6)
+    numDataRowsScanned: Math.max(0, rows.length - (headerRow + 1))
   };
 
   const dataRows = [];
-  for (let r = 6; r < rows.length; r++) {
+  for (let r = headerRow + 1; r < rows.length; r++) {
     const provName = _advCellText(rows, r, metaCols.provName);
     if (!provName) continue;
     dataRows.push({

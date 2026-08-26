@@ -125,7 +125,7 @@ function advNoRowsDiagnostic(debug) {
     <div style="margin-top:8px;font-family:monospace;font-size:0.72rem;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6">Fila de cabecera detectada: ${(debug?.headerRowIndex ?? '?') + 1}
 Columnas leídas en esa fila: ${(debug?.headerRowTexts || []).map(advEscape).join(' | ') || '(ninguna)'}
 Columnas identificadas: ${JSON.stringify(cols)}
-Filas de datos exploradas (a partir de la fila 7): ${debug?.numDataRowsScanned ?? '?'}</div>
+Filas de datos exploradas (a partir de la fila ${((debug?.headerRowIndex ?? 5) + 1) + 1}): ${debug?.numDataRowsScanned ?? '?'}</div>
   </details>`;
 }
 
