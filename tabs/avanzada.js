@@ -88,6 +88,13 @@ registerTab('advanced', 'tab-content', String.raw`
                   <label for="adv-formula">Fórmula de reparto</label>
                   <div class="adv-select-wrap"><select id="adv-formula"></select></div>
                 </div>
+                <div class="adv-exc" data-exc-section="reparto">
+                  <button type="button" class="adv-exc-btn">
+                    <span class="adv-exc-check" aria-hidden="true"></span>
+                    <span class="adv-exc-label">Excepciones: <b class="adv-exc-count">ninguna</b></span>
+                  </button>
+                  <small>Las circunscripciones marcadas quedan fuera de este cambio de fórmula.</small>
+                </div>
               </div>
             </section>
 
@@ -130,6 +137,13 @@ registerTab('advanced', 'tab-content', String.raw`
                 </div>
 
                 <label class="adv-check"><input type="checkbox" id="adv-blanco" checked> Contar votos en blanco en la barrera</label>
+                <div class="adv-exc" data-exc-section="barreras">
+                  <button type="button" class="adv-exc-btn">
+                    <span class="adv-exc-check" aria-hidden="true"></span>
+                    <span class="adv-exc-label">Excepciones: <b class="adv-exc-count">ninguna</b></span>
+                  </button>
+                  <small>Las circunscripciones marcadas quedan fuera de estas barreras.</small>
+                </div>
               </div>
             </section>
 
@@ -170,6 +184,13 @@ registerTab('advanced', 'tab-content', String.raw`
                     <small>Mínimo fijo por circunscripción y resto por cuota Hare, como la LOREG.</small>
                   </div>
                 </div>
+                <div class="adv-exc" data-exc-section="escanos">
+                  <button type="button" class="adv-exc-btn">
+                    <span class="adv-exc-check" aria-hidden="true"></span>
+                    <span class="adv-exc-label">Excepciones: <b class="adv-exc-count">ninguna</b></span>
+                  </button>
+                  <small>Las circunscripciones marcadas quedan fuera de este reparto.</small>
+                </div>
               </div>
             </section>
 
@@ -186,6 +207,13 @@ registerTab('advanced', 'tab-content', String.raw`
                 </button>
                 <small>Cambia los votos de cada candidatura y los escaños de cada circunscripción. Los cambios son sólo de esta sesión y se pueden deshacer.</small>
                 <button type="button" class="adv-mini-btn" id="adv-edit-reset" hidden>Restaurar originales</button>
+                <div class="adv-exc" data-exc-section="datos">
+                  <button type="button" class="adv-exc-btn">
+                    <span class="adv-exc-check" aria-hidden="true"></span>
+                    <span class="adv-exc-label">Excepciones: <b class="adv-exc-count">ninguna</b></span>
+                  </button>
+                  <small>Las circunscripciones marcadas quedan fuera de la edición de datos.</small>
+                </div>
                 <div class="adv-divider"></div>
                 <button type="button" class="adv-mini-btn" id="adv-meta-btn">Ver metadatos</button>
               </div>

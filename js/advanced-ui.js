@@ -47,12 +47,15 @@ let _advCustomParties = {};
 let _advPartyColors = {};
 
 /**
- * Circunscripciones bloqueadas, por su identificador.
- * Una bloqueada conserva sus escaños frente al reparto automático —que se
- * hace sólo con las libres, descontando los suyos del total— y no admite
- * cambios en sus datos.
+ * Candados por circunscripción: { [id]: { escanos, formula, barrera, edicion, snap } }
+ *
+ * Cada aspecto deja esa circunscripción fuera de una opción de la
+ * configuración. Los que congelan un valor guardan en «snap» el ajuste
+ * vigente al activarse, para que los cambios globales posteriores no le
+ * afecten. Con el botón izquierdo se activan o quitan todos a la vez; con el
+ * derecho (o pulsación larga) se elige aspecto por aspecto.
  */
-let _advLocks = new Set();
+let _advLocks = {};
 let _advLoading = false;
 let _advLoaded  = false;
 
@@ -95,7 +98,7 @@ async function advLoadElection(force) {
   _advEdits = {};
   _advCustomParties = {};
   _advPartyColors = {};
-  _advLocks = new Set();
+  _advLocks = {};
   const key = select('#adv-election')?.value || ADV_ELECTIONS[0].key;
   advRenderStatus(`<div class="adv-loading"><span class="adv-spinner"></span>Cargando datos electorales…</div>`);
   select('#adv-results').innerHTML = '';
@@ -360,7 +363,7 @@ function advUpdateSummaries() {
     : nEdits ? `${nEdits} cambio${nEdits === 1 ? '' : 's'} en esta sesión`
     : 'Sin cambios');
 
-  const nLocks = _advLocks.size;
+  const nLocks = advLockedIds().length;
   const lockTxt = nLocks ? ` · ${nLocks} fijada${nLocks === 1 ? '' : 's'}` : '';
   const seatsTxt = (c.seatsMode === 'custom'
     ? `${c.totalSeats} personalizados · mín. ${c.minPorCircunscripcion}`
@@ -427,6 +430,7 @@ function advRun() {
   advRenderResults();
   advUpdateSummaries();
   advRefreshEditBar();
+  advRefreshExceptions();
 }
 
 function advRenderSummary() {
@@ -567,12 +571,13 @@ function advDistrictsCard() {
       : `${ds.length} circunscripci${ds.length === 1 ? 'ón' : 'ones'}`;
 
     // El candado del grupo actúa sobre todas sus circunscripciones a la vez.
-    const lockedCount = ds.filter(x => _advLocks.has(x.id)).length;
+    const lockedCount = ds.filter(x => advAnyLock(x.id)).length;
     const allLocked  = lockedCount === ds.length;
     const someLocked = lockedCount > 0 && !allLocked;
-    const lockTitle = allLocked
+    const lockTitle = (allLocked
       ? `Desbloquear ${ccaa}: sus circunscripciones volverán al reparto`
-      : `Bloquear ${ccaa}: sus ${ds.length} circunscripci${ds.length === 1 ? 'ón' : 'ones'} conservarán sus escaños`;
+      : `Bloquear ${ccaa}: sus ${ds.length} circunscripci${ds.length === 1 ? 'ón' : 'ones'} conservarán sus escaños`) +
+      '. Clic derecho o pulsación larga para elegir qué cubre en todas ellas.';
 
     return `<div class="adv-ccaa${allLocked ? ' adv-locked' : ''}">
       <div class="adv-ccaa-headrow">
@@ -614,7 +619,8 @@ function advDistrictsCard() {
 const ADV_VISIBLE_ROWS = 6;
 
 function advDistrictHTML(d, alwaysFull, hideHead) {
-  const locked = _advLocks.has(d.id);
+  const locked = advAnyLock(d.id);
+  const lockedEdit = advLockHas(_advLocks, d.id, 'edicion');
   const expanded = alwaysFull || _advExpandedDistricts.has(d.id);
   const rows = d.results;
   // Se muestran siempre las candidaturas con escaño y las bloqueadas por barrera
@@ -640,7 +646,7 @@ function advDistrictHTML(d, alwaysFull, hideHead) {
     const color = advPartyColor(p);
     const cls = p.blockedReason ? 'adv-blocked' : p.seats === 0 ? 'adv-noseat' : '';
     const isEdited = edited.votes && edited.votes[p.key] !== undefined;
-    const votesCell = (_advEditMode && !locked)
+    const votesCell = (_advEditMode && !lockedEdit)
       ? `<input type="number" class="adv-edit-votes${isEdited ? ' changed' : ''}" min="0" step="1"
                 value="${p.votes}" data-district="${advEscape(d.id)}" data-party="${advEscape(p.key)}"
                 aria-label="Votos de ${advEscape(p.siglas || p.name)} en ${advEscape(d.name)}">`
@@ -648,7 +654,7 @@ function advDistrictHTML(d, alwaysFull, hideHead) {
 
     // En modo edición cada fila lleva los mismos controles que la calculadora
     // básica: arrastrar para reordenar, eliminar y color.
-    const controls = (_advEditMode && !locked)
+    const controls = (_advEditMode && !lockedEdit)
       ? `<span class="adv-row-tools">
            <span class="adv-drag-handle" title="Arrastrar para reordenar" data-party="${advEscape(p.key)}">⠿</span>
            <button type="button" class="adv-row-del" title="Quitar de esta circunscripción"
@@ -674,7 +680,7 @@ function advDistrictHTML(d, alwaysFull, hideHead) {
   // Con circunscripción autonómica la cabecera del grupo ya da nombre, votos
   // y escaños: repetirlos aquí sería ruido.
   const seatsEdited = edited.seats != null;
-  const seatsCell = (_advEditMode && !locked)
+  const seatsCell = (_advEditMode && !advLockHas(_advLocks, d.id, 'escanos'))
     ? `<label class="adv-edit-seats-wrap">
          <input type="number" class="adv-edit-seats${seatsEdited ? ' changed' : ''}" min="0" step="1"
                 value="${d.seats}" data-district="${advEscape(d.id)}"
@@ -683,8 +689,14 @@ function advDistrictHTML(d, alwaysFull, hideHead) {
        </label>`
     : `<b>${d.seats}</b> ${advEscape(seatWord)}${showReal && realTotal !== d.seats ? ` · ${realTotal} reales` : ''}`;
 
-  const lockBtn = `<button type="button" class="adv-lock${locked ? ' on' : ''}" data-lock-district="${advEscape(d.id)}"
-      title="${locked ? 'Desbloquear: volverá a entrar en el reparto de escaños' : 'Bloquear: conservará sus escaños y no se podrá editar'}"
+  const activeAspects = ADV_LOCK_ASPECTS.filter(a => advLockHas(_advLocks, d.id, a.key));
+  const partial = locked && activeAspects.length < ADV_LOCK_ASPECTS.length;
+  const lockTip = locked
+    ? `Bloqueado: ${activeAspects.map(a => a.label.toLowerCase()).join(', ')}. ` +
+      `Clic para quitar el candado; clic derecho o pulsación larga para elegir qué cubre.`
+    : 'Bloquear esta circunscripción. Clic derecho o pulsación larga para elegir qué cubre.';
+  const lockBtn = `<button type="button" class="adv-lock${locked ? ' on' : ''}${partial ? ' partial' : ''}"
+      data-lock-district="${advEscape(d.id)}" title="${advEscape(lockTip)}"
       aria-pressed="${locked}">${locked ? '🔒' : '🔓'}</button>`;
 
   const head = hideHead ? '' : `<div class="adv-district-head">
@@ -705,7 +717,7 @@ function advDistrictHTML(d, alwaysFull, hideHead) {
       ${showReal ? '<td></td>' : ''}
     </tr></tfoot>` : '';
 
-  return `<div class="adv-district${locked ? ' adv-locked' : ''}" data-district-id="${advEscape(d.id)}">
+  return `<div class="adv-district${locked ? ' adv-locked' : ''}${partial ? ' adv-locked-partial' : ''}" data-district-id="${advEscape(d.id)}">
     ${head}
     <div class="adv-district-table-scroll">
     <table>
@@ -720,7 +732,7 @@ function advDistrictHTML(d, alwaysFull, hideHead) {
       ${foot}
     </table>
     </div>
-    ${(_advEditMode && !locked) ? `<button class="adv-add-btn" data-district="${advEscape(d.id)}">
+    ${(_advEditMode && !lockedEdit) ? `<button class="adv-add-btn" data-district="${advEscape(d.id)}">
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5.5" stroke="currentColor" stroke-width="1.1"/><path d="M6 3v6M3 6h6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
         Añadir candidatura</button>` : ''}
     ${hidden > 0 ? `<button class="adv-more-btn" data-district="${advEscape(d.id)}">▼ Ver ${hidden} candidatura${hidden === 1 ? '' : 's'} más</button>` : ''}
@@ -738,7 +750,7 @@ function advCountEdits() {
       + (e.removed?.length || 0)
       + (e.order ? 1 : 0), 0)
     + Object.keys(_advPartyColors).length
-    + _advLocks.size;
+    + advLockedIds().length;
 }
 
 function advEditsFor(districtId) {
@@ -925,30 +937,302 @@ function advOpenAddParty(districtId, anchorBtn) {
 
 /* ── Bloqueo de circunscripciones ──────────────────────────── */
 
-/**
- * Alterna el bloqueo de una circunscripción. Una bloqueada conserva sus
- * escaños cuando cambia el reparto y no admite cambios en sus datos.
- */
+/** Identificadores con algún aspecto bloqueado. */
+function advLockedIds() {
+  return Object.keys(_advLocks).filter(id =>
+    ADV_LOCK_ASPECTS.some(a => _advLocks[id][a.key]));
+}
+
+/** ¿Tiene esta circunscripción algún aspecto bloqueado? */
+function advAnyLock(districtId) {
+  const l = _advLocks[districtId];
+  return !!l && ADV_LOCK_ASPECTS.some(a => l[a.key]);
+}
+
+/** Congela los ajustes vigentes, para los aspectos que deben conservarlos. */
+function advSnapshotConfig() {
+  const c = _advConfig || {};
+  return {
+    formula: c.formula,
+    barrera1: { ...(c.barrera1 || {}) },
+    barrera2: { ...(c.barrera2 || {}) }
+  };
+}
+
+/** Activa o quita un aspecto concreto del candado de una circunscripción. */
+function advSetLockAspect(districtId, aspect, on) {
+  let entry = _advLocks[districtId];
+  if (!entry) entry = _advLocks[districtId] = {};
+  entry[aspect] = !!on;
+
+  // El snapshot se toma la primera vez que se congela algo y se descarta
+  // cuando ya no queda ningún aspecto que lo necesite.
+  const needsSnap = ADV_LOCK_ASPECTS.some(a => a.snap && entry[a.key]);
+  if (needsSnap && !entry.snap) entry.snap = advSnapshotConfig();
+  else if (!needsSnap) delete entry.snap;
+
+  if (!ADV_LOCK_ASPECTS.some(a => entry[a.key])) delete _advLocks[districtId];
+}
+
+/** Alterna el candado completo: o todos los aspectos, o ninguno. */
 function advToggleLock(districtId) {
-  if (_advLocks.has(districtId)) _advLocks.delete(districtId);
-  else _advLocks.add(districtId);
+  const on = !advAnyLock(districtId);
+  ADV_LOCK_ASPECTS.forEach(a => advSetLockAspect(districtId, a.key, on));
   advRun();
+}
+
+/** Circunscripciones que forman un grupo de la vista (una comunidad). */
+function advCcaaMembers(ccaaName) {
+  const level = _advConfig?.circunscripcion;
+  return (_advResult?.districts || []).filter(d =>
+    (level === 'ccaa' ? d.name : (d.ccaaName || d.name)) === ccaaName);
 }
 
 /** Bloquea o desbloquea de una vez todas las circunscripciones de una comunidad. */
 function advToggleCcaaLock(ccaaName) {
-  const level = _advConfig?.circunscripcion;
-  const members = (_advResult?.districts || []).filter(d =>
-    (level === 'ccaa' ? d.name : (d.ccaaName || d.name)) === ccaaName);
+  const members = advCcaaMembers(ccaaName);
   if (!members.length) return;
-
-  // Si ya lo estaban todas se sueltan; si no, se bloquean las que falten.
-  const allLocked = members.every(d => _advLocks.has(d.id));
-  members.forEach(d => allLocked ? _advLocks.delete(d.id) : _advLocks.add(d.id));
+  const allLocked = members.every(d => advAnyLock(d.id));
+  members.forEach(d => ADV_LOCK_ASPECTS.forEach(a =>
+    advSetLockAspect(d.id, a.key, !allLocked)));
   advRun();
 }
 
-/** Reordenar filas arrastrando, como en la tabla de la calculadora básica. */
+/** Aplica un aspecto a todas las circunscripciones de una comunidad. */
+function advSetCcaaAspect(ccaaName, aspect, on) {
+  advCcaaMembers(ccaaName).forEach(d => advSetLockAspect(d.id, aspect, on));
+  advRun();
+}
+
+/* ── Excepciones desde el panel de configuración ───────────── */
+
+/**
+ * Cada sección de la configuración puede dejar fuera a algunas
+ * circunscripciones. Es la otra cara del candado: marcar aquí una
+ * circunscripción equivale a activarle ese aspecto del candado, y viceversa.
+ */
+function advAspectOfSection(section) {
+  return ADV_LOCK_ASPECTS.find(a => a.section === section) || null;
+}
+
+/** Refresca el contador de excepciones de cada sección. */
+function advRefreshExceptions() {
+  selectAll('.adv-exc').forEach(box => {
+    const aspect = advAspectOfSection(box.dataset.excSection);
+    if (!aspect) return;
+    const ids = (_advResult?.districts || []).filter(d => advLockHas(_advLocks, d.id, aspect.key));
+    const n = ids.length;
+    updateText(box.querySelector('.adv-exc-count'),
+      n === 0 ? 'ninguna' : n === 1 ? `1 · ${ids[0].name}` : `${n} circunscripciones`);
+    toggleClass(box, 'has-exceptions', n > 0);
+  });
+}
+
+/** Despliega la lista de circunscripciones para marcar cuáles quedan fuera. */
+function advOpenExceptions(box) {
+  select('.adv-exc-pop')?.remove();
+  const aspect = advAspectOfSection(box.dataset.excSection);
+  const districts = _advResult?.districts || [];
+  if (!aspect || !districts.length) return;
+
+  // Se agrupan por comunidad para poder marcarlas de golpe, igual que hace el
+  // candado maestro sobre los resultados.
+  const level = _advConfig?.circunscripcion;
+  const groups = new Map();
+  districts.forEach(d => {
+    const k = level === 'ccaa' ? d.name : (d.ccaaName || d.name);
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(d);
+  });
+
+  const pop = document.createElement('div');
+  pop.className = 'adv-exc-pop';
+  pop.innerHTML = `
+    <div class="adv-exc-pop-title">
+      Fuera de «${advEscape(aspect.label)}»
+      <button type="button" class="adv-exc-close" title="Cerrar">✕</button>
+    </div>
+    <div class="adv-exc-pop-actions">
+      <button type="button" class="adv-mini-btn" data-exc-all="1">Marcar todas</button>
+      <button type="button" class="adv-mini-btn" data-exc-all="0">Ninguna</button>
+    </div>
+    <div class="adv-exc-list">
+      ${[...groups.entries()].map(([ccaa, ds]) => {
+        const all = ds.every(d => advLockHas(_advLocks, d.id, aspect.key));
+        const some = !all && ds.some(d => advLockHas(_advLocks, d.id, aspect.key));
+        const single = ds.length === 1 && ds[0].name === ccaa;
+        return `<div class="adv-exc-group">
+          <label class="adv-exc-item group${some ? ' partial' : ''}">
+            <input type="checkbox" data-exc-ccaa="${advEscape(ccaa)}" ${all ? 'checked' : ''}>
+            <b>${advEscape(ccaa)}</b>${single ? '' : ` <small>${ds.length}</small>`}
+          </label>
+          ${single ? '' : ds.map(d => `
+            <label class="adv-exc-item">
+              <input type="checkbox" data-exc-district="${advEscape(d.id)}" ${advLockHas(_advLocks, d.id, aspect.key) ? 'checked' : ''}>
+              ${advEscape(d.name)}
+            </label>`).join('')}
+        </div>`;
+      }).join('')}
+    </div>`;
+
+  document.body.appendChild(pop);
+  const r = box.getBoundingClientRect();
+  pop.style.top = `${window.scrollY + Math.min(r.bottom + 6, window.innerHeight - pop.offsetHeight - 10)}px`;
+  pop.style.left = `${Math.max(8, window.scrollX + r.left - pop.offsetWidth + r.width)}px`;
+
+  const close = () => pop.remove();
+  pop.querySelector('.adv-exc-close').addEventListener('click', close);
+
+  pop.querySelectorAll('input[data-exc-district]').forEach(inp => {
+    inp.addEventListener('change', () => {
+      advSetLockAspect(inp.dataset.excDistrict, aspect.key, inp.checked);
+      advRun();
+      advOpenExceptions(box);   // se redibuja para reflejar el estado del grupo
+    });
+  });
+  pop.querySelectorAll('input[data-exc-ccaa]').forEach(inp => {
+    inp.addEventListener('change', () => {
+      advCcaaMembers(inp.dataset.excCcaa).forEach(d =>
+        advSetLockAspect(d.id, aspect.key, inp.checked));
+      advRun();
+      advOpenExceptions(box);
+    });
+  });
+  pop.querySelectorAll('button[data-excAll], button[data-exc-all]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const on = btn.dataset.excAll === '1';
+      districts.forEach(d => advSetLockAspect(d.id, aspect.key, on));
+      advRun();
+      advOpenExceptions(box);
+    });
+  });
+
+  setTimeout(() => document.addEventListener('mousedown', function once(ev) {
+    if (!pop.contains(ev.target) && !box.contains(ev.target)) {
+      close();
+      document.removeEventListener('mousedown', once);
+    }
+  }), 0);
+}
+
+function advInitExceptions() {
+  selectAll('.adv-exc').forEach(box => {
+    box.querySelector('.adv-exc-btn')?.addEventListener('click', () => advOpenExceptions(box));
+  });
+}
+
+/* ── Menú del candado ──────────────────────────────────────── */
+
+/**
+ * Menú contextual del candado: permite elegir qué aspectos cubre en lugar de
+ * activarlos todos. Se abre con el botón derecho o con una pulsación larga,
+ * para no estorbar al uso normal de un clic.
+ *
+ * Sobre una comunidad funciona como mando maestro: cada casilla refleja si el
+ * aspecto está en todas sus circunscripciones, en algunas o en ninguna, y al
+ * pulsarla se aplica a todas.
+ */
+function advOpenLockMenu(opts) {
+  select('.adv-lock-menu')?.remove();
+  const { anchor, districtId, ccaaName } = opts;
+
+  const members = ccaaName ? advCcaaMembers(ccaaName) : null;
+  const title = ccaaName
+    ? `${ccaaName} · ${members.length} circunscripci${members.length === 1 ? 'ón' : 'ones'}`
+    : (_advResult?.districts.find(d => d.id === districtId)?.name || '');
+
+  // Estado de cada aspecto: en una comunidad puede ser parcial.
+  const stateOf = aspect => {
+    if (!ccaaName) return advLockHas(_advLocks, districtId, aspect) ? 'all' : 'none';
+    const n = members.filter(d => advLockHas(_advLocks, d.id, aspect)).length;
+    return n === 0 ? 'none' : n === members.length ? 'all' : 'some';
+  };
+
+  const menu = document.createElement('div');
+  menu.className = 'adv-lock-menu';
+  menu.innerHTML = `
+    <div class="adv-lock-menu-title">
+      ${ccaaName ? 'Candado maestro' : 'Candado'}
+      <small>${advEscape(title)}</small>
+    </div>
+    ${ADV_LOCK_ASPECTS.map(a => {
+      const st = stateOf(a.key);
+      return `<label class="adv-lock-opt${st === 'some' ? ' partial' : ''}">
+        <input type="checkbox" data-aspect="${a.key}" ${st === 'all' ? 'checked' : ''}>
+        <span class="adv-lock-opt-text">
+          <b>${advEscape(a.label)}</b>
+          <small>${advEscape(a.hint)}${st === 'some' ? ' · en algunas' : ''}</small>
+        </span>
+      </label>`;
+    }).join('')}
+    <div class="adv-lock-menu-foot">
+      <button type="button" class="adv-mini-btn" data-all="1">Todo</button>
+      <button type="button" class="adv-mini-btn" data-all="0">Nada</button>
+    </div>`;
+
+  document.body.appendChild(menu);
+  const r = anchor.getBoundingClientRect();
+  menu.style.top = `${window.scrollY + r.bottom + 6}px`;
+  menu.style.left = `${Math.max(8, Math.min(
+    window.scrollX + r.left - menu.offsetWidth + r.width,
+    window.scrollX + document.documentElement.clientWidth - menu.offsetWidth - 10))}px`;
+
+  const apply = (aspect, on) => {
+    if (ccaaName) advSetCcaaAspect(ccaaName, aspect, on);
+    else { advSetLockAspect(districtId, aspect, on); advRun(); }
+  };
+
+  // El menú no se cierra al marcar: así se pueden elegir varios aspectos
+  // seguidos sin tener que volver a abrirlo.
+  menu.querySelectorAll('input[data-aspect]').forEach(inp => {
+    inp.addEventListener('change', () => {
+      apply(inp.dataset.aspect, inp.checked);
+      menu.querySelectorAll('.adv-lock-opt').forEach(o => o.classList.remove('partial'));
+    });
+  });
+  menu.querySelectorAll('button[data-all]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const on = btn.dataset.all === '1';
+      ADV_LOCK_ASPECTS.forEach(a => {
+        if (ccaaName) advCcaaMembers(ccaaName).forEach(d => advSetLockAspect(d.id, a.key, on));
+        else advSetLockAspect(districtId, a.key, on);
+      });
+      advRun();
+      menu.remove();
+    });
+  });
+
+  setTimeout(() => document.addEventListener('mousedown', function once(ev) {
+    if (!menu.contains(ev.target)) { menu.remove(); document.removeEventListener('mousedown', once); }
+  }), 0);
+}
+
+/**
+ * Conecta la apertura del menú a un candado: botón derecho en ratón y
+ * pulsación larga en pantallas táctiles, donde no hay clic secundario.
+ */
+function advAttachLockMenu(btn, opts) {
+  btn.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    advOpenLockMenu({ ...opts, anchor: btn });
+  });
+
+  let timer = null, longPress = false;
+  const cancel = () => { clearTimeout(timer); timer = null; };
+  btn.addEventListener('touchstart', () => {
+    longPress = false;
+    timer = setTimeout(() => { longPress = true; advOpenLockMenu({ ...opts, anchor: btn }); }, 500);
+  }, { passive: true });
+  btn.addEventListener('touchmove', cancel, { passive: true });
+  btn.addEventListener('touchend', e => {
+    cancel();
+    // Tras una pulsación larga se ha abierto el menú: no debe además alternar.
+    if (longPress) { e.preventDefault(); longPress = false; }
+  });
+}
+
+/** Reordenar filas arrastrando, como en la tabla de la calculadora básica. *//** Reordenar filas arrastrando, como en la tabla de la calculadora básica. */
 function advAttachRowDrag(scope) {
   scope.querySelectorAll('.adv-drag-handle').forEach(handle => {
     handle.addEventListener('mousedown', e => {
@@ -1010,7 +1294,7 @@ function advResetEdits() {
   _advEdits = {};
   _advCustomParties = {};
   _advPartyColors = {};
-  _advLocks = new Set();
+  _advLocks = {};
   advRun();
 }
 
@@ -1154,17 +1438,15 @@ function advAttachResultHandlers() {
   });
 
   selectAll('#adv-results .adv-lock[data-lock-district]').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      advToggleLock(btn.dataset.lockDistrict);
-    });
+    const id = btn.dataset.lockDistrict;
+    btn.addEventListener('click', e => { e.stopPropagation(); advToggleLock(id); });
+    advAttachLockMenu(btn, { districtId: id });
   });
 
   selectAll('#adv-results .adv-lock[data-lock-ccaa]').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      advToggleCcaaLock(btn.dataset.lockCcaa);
-    });
+    const ccaa = btn.dataset.lockCcaa;
+    btn.addEventListener('click', e => { e.stopPropagation(); advToggleCcaaLock(ccaa); });
+    advAttachLockMenu(btn, { ccaaName: ccaa });
   });
 
   const results = select('#adv-results');
@@ -1208,6 +1490,7 @@ function advInit() {
   advBuildFormulaOptions();
   advInitSections();
   advInitEditBar();
+  advInitExceptions();
   advInitMetaDialog();
 
   ['#adv-year', '#adv-level', '#adv-formula', '#adv-b1-on', '#adv-b1-level', '#adv-b1-val',

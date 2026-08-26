@@ -77,6 +77,43 @@ function advBuildDistricts(data, config) {
   return districts;
 }
 
+/* ── Candados por circunscripción ──────────────────────────── */
+
+/**
+ * Aspectos que puede cubrir el candado de una circunscripción. Cada uno
+ * corresponde a una sección de la configuración, de modo que bloquear un
+ * aspecto equivale a dejar esa circunscripción fuera de esa opción.
+ *
+ * Los que congelan un valor ('snap') guardan el ajuste vigente al activarse:
+ * a partir de ahí, cambiar la opción global ya no les afecta.
+ */
+const ADV_LOCK_ASPECTS = [
+  { key: 'escanos', label: 'Escaños',           section: 'escanos',  snap: false,
+    hint: 'Conserva sus escaños aunque cambie el reparto' },
+  { key: 'formula', label: 'Fórmula de reparto', section: 'reparto',  snap: true,
+    hint: 'Mantiene la fórmula actual aunque se cambie' },
+  { key: 'barrera', label: 'Barreras',           section: 'barreras', snap: true,
+    hint: 'Mantiene las barreras actuales aunque se cambien' },
+  { key: 'edicion', label: 'Edición de datos',   section: 'datos',    snap: false,
+    hint: 'Impide cambiar sus votos y candidaturas' },
+];
+
+/** ¿Tiene esta circunscripción bloqueado este aspecto? */
+function advLockHas(locks, districtId, aspect) {
+  return !!(locks && locks[districtId] && locks[districtId][aspect]);
+}
+
+/** Ajustes vigentes para una circunscripción: los congelados si los hay. */
+function advEffectiveConfig(config, locks, districtId) {
+  const snap = locks?.[districtId]?.snap;
+  return {
+    formula: advLockHas(locks, districtId, 'formula') && snap ? snap.formula : config.formula,
+    barreras: advLockHas(locks, districtId, 'barrera') && snap
+      ? [snap.barrera1, snap.barrera2]
+      : [config.barrera1, config.barrera2]
+  };
+}
+
 /* ── Ediciones de la sesión ────────────────────────────────── */
 
 /**
@@ -209,8 +246,7 @@ function _advValidVotes(d, config) {
  * Devuelve, para cada circunscripción, el conjunto de claves de partido que
  * superan todas las barreras activas.
  */
-function advComputeEligibility(districts, config) {
-  const barreras = [config.barrera1, config.barrera2].filter(b => b && b.activa && b.valor > 0);
+function advComputeEligibility(districts, config, locks) {
 
   // Agregados por ámbito para las barreras supra-circunscripcionales.
   const ccaaTotals = new Map();
@@ -231,6 +267,13 @@ function advComputeEligibility(districts, config) {
   const blockedBy   = new Map();
 
   districts.forEach(d => {
+    // Cada circunscripción usa sus propias barreras si las tiene congeladas
+    // por el candado; si no, las de la configuración general. Los totales de
+    // ámbito (comunidad y nacional) se calculan siempre con el criterio
+    // general, porque son de toda la elección y no de una circunscripción.
+    const barreras = advEffectiveConfig(config, locks, d.id).barreras
+      .filter(b => b && b.activa && b.valor > 0);
+
     const ok = new Set();
     const blocked = new Map();
     d.partyVotes.forEach((votes, key) => {
@@ -271,22 +314,20 @@ function advCalculate(data, config, edits, locks) {
   // porcentajes partan ya de los valores editados.
   advApplyVoteEdits(districts, edits);
 
-  // Una circunscripción bloqueada conserva los escaños que tuviera: los
-  // puestos a mano si los hay, y si no los de la hoja.
+  // Con el aspecto «escaños» bloqueado, la circunscripción conserva los que
+  // tuviera: los puestos a mano si los hay, y si no los de la hoja.
   const lockedSeats = new Map();
-  if (locks && locks.size) {
-    districts.forEach(d => {
-      if (!locks.has(d.id)) return;
-      const manual = edits?.[d.id]?.seats;
-      lockedSeats.set(d.id, Math.max(0, manual != null ? manual : d.seatsBase));
-    });
-  }
+  districts.forEach(d => {
+    if (!advLockHas(locks, d.id, 'escanos')) return;
+    const manual = edits?.[d.id]?.seats;
+    lockedSeats.set(d.id, Math.max(0, manual != null ? manual : d.seatsBase));
+  });
 
   const apport    = advApportionSeats(districts, config, lockedSeats);
   // Los escaños se sustituyen después del reparto: un valor puesto a mano
   // manda sobre los de la hoja y sobre el reparto automático.
   advApplySeatEdits(districts, edits);
-  const { eligibility, blockedBy } = advComputeEligibility(districts, config);
+  const { eligibility, blockedBy } = advComputeEligibility(districts, config, locks);
 
   const partyMeta = new Map(data.parties.map(p => [p.key, p]));
 
@@ -299,9 +340,11 @@ function advCalculate(data, config, edits, locks) {
       .filter(([k, v]) => v > 0 && ok.has(k))
       .map(([k, v]) => ({ key: k, name: partyMeta.get(k)?.name || k, siglas: partyMeta.get(k)?.siglas || '', votes: v }));
 
+    const formula = advEffectiveConfig(config, locks, d.id).formula;
     const allocated = d.seats > 0 && contenders.length
-      ? allocateSeats(contenders, d.seats, config.formula)
+      ? allocateSeats(contenders, d.seats, formula)
       : contenders.map(p => ({ ...p, seats: 0 }));
+    d.formulaUsada = formula;
 
     const seatsByKey = new Map(allocated.map(p => [p.key, p.seats]));
     const validVotes = _advValidVotes(d, config);

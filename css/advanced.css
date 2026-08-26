@@ -994,3 +994,159 @@ tr.drag-over-below td { box-shadow: inset 0 -2px 0 var(--accent); }
   font-style: italic;
 }
 .adv-ccaa.adv-locked > .adv-ccaa-headrow .adv-ccaa-header { border-left-color: var(--accent); }
+
+/* ── MENÚ DEL CANDADO Y EXCEPCIONES ──────────────────────────
+   El candado cubre por defecto todos los aspectos; su menú (botón derecho o
+   pulsación larga) permite elegir cuáles. Las mismas opciones aparecen como
+   «excepciones» en cada sección de la configuración: son dos vistas del
+   mismo estado. */
+
+.adv-lock.partial { opacity: 0.9; border-style: dashed; }
+
+.adv-lock-menu, .adv-exc-pop {
+  position: absolute;
+  z-index: 400;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  font-family: 'Source Sans 3', sans-serif;
+}
+
+.adv-lock-menu { width: 265px; padding: 8px; }
+.adv-lock-menu-title {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  padding: 3px 6px 7px;
+  border-bottom: 1px solid var(--border-light);
+  margin-bottom: 5px;
+}
+.adv-lock-menu-title small {
+  display: block;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.74rem;
+  color: var(--accent);
+  font-weight: 700;
+  margin-top: 2px;
+}
+
+.adv-lock-opt {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 5px 6px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background var(--transition);
+}
+.adv-lock-opt:hover { background: var(--accent-pale); }
+.adv-lock-opt input { margin-top: 2px; flex-shrink: 0; cursor: pointer; }
+.adv-lock-opt.partial input { opacity: 0.6; }
+.adv-lock-opt-text b { display: block; font-size: 0.78rem; color: var(--text); font-weight: 600; }
+.adv-lock-opt-text small {
+  display: block;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+  margin-top: 1px;
+}
+.adv-lock-menu-foot {
+  display: flex;
+  gap: 6px;
+  padding-top: 7px;
+  margin-top: 4px;
+  border-top: 1px solid var(--border-light);
+}
+.adv-lock-menu-foot .adv-mini-btn {
+  flex: 1;
+  border-color: var(--border);
+  color: var(--accent);
+  background: var(--surface);
+  padding: 4px 8px;
+}
+.adv-lock-menu-foot .adv-mini-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* Línea de excepciones dentro de cada sección de configuración */
+.adv-exc { display: flex; flex-direction: column; gap: 3px; }
+.adv-exc-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px 9px;
+  cursor: pointer;
+  font-family: 'Source Sans 3', sans-serif;
+  font-size: 0.74rem;
+  color: var(--text);
+  text-align: left;
+  transition: border-color var(--transition), background var(--transition);
+}
+.adv-exc-btn:hover { border-color: var(--accent); background: var(--accent-pale); }
+.adv-exc-check {
+  width: 12px; height: 12px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  flex-shrink: 0;
+  background: var(--surface);
+}
+.adv-exc.has-exceptions .adv-exc-check {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 2px var(--surface);
+}
+.adv-exc.has-exceptions .adv-exc-btn { border-color: var(--accent); }
+.adv-exc-count { color: var(--accent); font-weight: 700; }
+
+/* Desplegable con la lista de circunscripciones */
+.adv-exc-pop { width: 290px; max-width: calc(100vw - 20px); padding: 10px; }
+.adv-exc-pop-title {
+  display: flex;
+  align-items: center;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--text);
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--border-light);
+}
+.adv-exc-close {
+  margin-left: auto;
+  background: none; border: none; cursor: pointer;
+  color: var(--text-muted); font-size: 0.78rem; line-height: 1;
+}
+.adv-exc-close:hover { color: var(--accent); }
+.adv-exc-pop-actions { display: flex; gap: 6px; padding: 7px 0; }
+.adv-exc-pop-actions .adv-mini-btn {
+  flex: 1;
+  border-color: var(--border);
+  color: var(--accent);
+  background: var(--surface);
+  padding: 4px 8px;
+}
+.adv-exc-pop-actions .adv-mini-btn:hover { background: var(--accent); color: #fff; }
+
+.adv-exc-list { max-height: 300px; overflow-y: auto; }
+.adv-exc-group { border-bottom: 1px solid var(--border-light); padding: 3px 0; }
+.adv-exc-group:last-child { border-bottom: none; }
+.adv-exc-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 5px 3px 18px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  color: var(--text);
+}
+.adv-exc-item:hover { background: var(--accent-pale); }
+.adv-exc-item.group { padding-left: 5px; color: var(--accent); }
+.adv-exc-item.group b { font-size: 0.76rem; }
+.adv-exc-item.group small { color: var(--text-muted); font-weight: 600; }
+.adv-exc-item.partial input { opacity: 0.6; }
+.adv-exc-item input { cursor: pointer; flex-shrink: 0; }
