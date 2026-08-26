@@ -64,7 +64,7 @@ async function advLoadElection(force) {
     _advLoaded = true;
 
     if (!_advParties.rows.length) {
-      advRenderStatus(`<div class="adv-notice error"><strong>La hoja no contiene filas de datos.</strong> Los datos deben empezar en la fila 6.</div>`);
+      advRenderStatus(advNoRowsDiagnostic(_advParties.debug));
       return;
     }
 
@@ -90,6 +90,34 @@ async function advLoadElection(force) {
   } finally {
     _advLoading = false;
   }
+}
+
+/**
+ * Diagnóstico para cuando la hoja se lee pero no se detecta ninguna fila de
+ * datos: probablemente el parser no ha reconocido alguna columna clave.
+ * Muestra lo que sí ha detectado para poder corregirlo sin volver a
+ * adivinar a ciegas la estructura de la hoja.
+ */
+function advNoRowsDiagnostic(debug) {
+  const cols = debug?.metaCols || {};
+  const need = { provName: 'Nombre de provincia', ccaaName: 'Nombre de comunidad', seatsBase: 'Nº diputados/circunscripción' };
+  const rowsOk = [], rowsMissing = [];
+  Object.entries(need).forEach(([k, label]) => (cols[k] !== undefined ? rowsOk : rowsMissing).push(label));
+
+  return `<div class="adv-notice error">
+    <strong>La hoja se ha leído, pero no se ha detectado ninguna fila de datos.</strong><br>
+    ${rowsMissing.length
+      ? `No se ha reconocido la columna de cabecera para: <strong>${rowsMissing.map(advEscape).join(', ')}</strong>.
+         Revisa que en la fila ${(debug?.headerRowIndex ?? 5) + 1} el texto de esas columnas mencione esas palabras.`
+      : 'Todas las columnas clave se han reconocido, pero ninguna fila desde la 7 tiene texto en la columna de provincia. Revisa que los datos empiecen ahí y no haya una fila en blanco antes.'}
+  </div>
+  <details class="adv-notice info" style="cursor:pointer">
+    <summary style="cursor:pointer;font-weight:700">Ver diagnóstico técnico</summary>
+    <div style="margin-top:8px;font-family:monospace;font-size:0.72rem;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6">Fila de cabecera detectada: ${(debug?.headerRowIndex ?? '?') + 1}
+Columnas leídas en esa fila: ${(debug?.headerRowTexts || []).map(advEscape).join(' | ') || '(ninguna)'}
+Columnas identificadas: ${JSON.stringify(cols)}
+Filas de datos exploradas (a partir de la fila 7): ${debug?.numDataRowsScanned ?? '?'}</div>
+  </details>`;
 }
 
 function advRenderStatus(html) {

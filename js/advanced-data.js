@@ -195,12 +195,18 @@ function advParseTable(table) {
     }
     if (h === 'diputados') continue; // se procesa junto al "Votos" de su misma columna par
 
-    if (h === 'codigo de provincia') {
-      // La hoja repite esta etiqueta para el código de CCAA y el de provincia;
-      // se distinguen por la columna de nombre que los acompaña a la derecha.
+    if (h.includes('codigo') && (h.includes('provincia') || h.includes('comunidad'))) {
+      // La hoja repite una etiqueta de "código" para la CCAA y para la provincia.
+      // En vez de depender del texto exacto de la columna de nombre que la
+      // acompaña (frágil ante variaciones de redacción), se asume que el
+      // nombre va siempre en la columna inmediatamente a la derecha del
+      // código, y sólo se usa el texto de esa columna para decidir si el
+      // par código+nombre es de comunidad o de provincia.
       const nextH = _advNormalize(_advCellText(rows, headerRow, c + 1));
-      if (nextH.includes('comunidad')) metaCols.ccaaCode = c;
-      else if (nextH.includes('provincia')) metaCols.provCode = c;
+      const isCcaa = nextH.includes('comunidad') || nextH.includes('autonom') ||
+        (!nextH.includes('provincia') && metaCols.ccaaCode === undefined);
+      if (isCcaa) { metaCols.ccaaCode = c; if (metaCols.ccaaName === undefined) metaCols.ccaaName = c + 1; }
+      else        { metaCols.provCode = c; if (metaCols.provName === undefined) metaCols.provName = c + 1; }
       continue;
     }
     if (h.includes('diputado') && (h.includes('provincia') || h.includes('circunscripcion'))) {
@@ -211,6 +217,28 @@ function advParseTable(table) {
       metaCols[ADV_HEADER_MAP[h]] = c;
     }
   }
+
+  // Red de seguridad: si por alguna razón no se detectó el nombre de
+  // provincia/comunidad por adyacencia, se busca por texto de cabecera.
+  if (metaCols.provName === undefined) {
+    for (let c = 0; c < numCols; c++) {
+      const h = _advNormalize(_advCellText(rows, headerRow, c));
+      if (h.includes('provincia') && !h.includes('codigo') && !h.includes('diputado')) { metaCols.provName = c; break; }
+    }
+  }
+  if (metaCols.ccaaName === undefined) {
+    for (let c = 0; c < numCols; c++) {
+      const h = _advNormalize(_advCellText(rows, headerRow, c));
+      if ((h.includes('comunidad') || h.includes('autonom')) && !h.includes('codigo')) { metaCols.ccaaName = c; break; }
+    }
+  }
+
+  const debug = {
+    headerRowIndex: headerRow,
+    headerRowTexts: Array.from({ length: numCols }, (_, c) => _advCellText(rows, headerRow, c)).filter(Boolean),
+    metaCols: { ...metaCols },
+    numDataRowsScanned: Math.max(0, rows.length - 6)
+  };
 
   const dataRows = [];
   for (let r = 6; r < rows.length; r++) {
@@ -242,7 +270,8 @@ function advParseTable(table) {
   return {
     meta,
     parties: parties.map(p => ({ key: p.key, name: p.name, siglas: p.siglas })),
-    rows: dataRows
+    rows: dataRows,
+    debug
   };
 }
 
