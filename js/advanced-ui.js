@@ -291,6 +291,77 @@ function advReadForm() {
   };
 }
 
+/* ── Secciones plegables del panel de configuración ────────── */
+
+const ADV_LEVEL_LABEL = { provincia: 'Provincial', ccaa: 'Autonómica', nacional: 'Estatal' };
+const ADV_BARRIER_LABEL = { circunscripcion: 'circunscripción', ccaa: 'comunidad', nacional: 'nacional' };
+
+/** Abre o pliega una sección; al plegarla se vuelve a bloquear la edición. */
+function advToggleSection(section, open) {
+  const willOpen = open !== undefined ? open : !section.classList.contains('open');
+  section.classList.toggle('open', willOpen);
+  if (!willOpen) advSetSectionEditable(section, false);
+}
+
+/** Activa o bloquea los controles de una sección. */
+function advSetSectionEditable(section, editable) {
+  section.classList.toggle('editing', editable);
+  const content = section.querySelector('.adv-cfg-content');
+  if (content) content.dataset.locked = String(!editable);
+  const btn = section.querySelector('.adv-cfg-edit');
+  if (btn) btn.textContent = editable ? 'Hecho' : 'Editar';
+}
+
+/** Resumen de una línea con el estado de cada sección, visible al plegarla. */
+function advUpdateSummaries() {
+  const c = _advConfig;
+  if (!c) return;
+
+  const yearSel = select('#adv-year');
+  updateText(select('#adv-sum-eleccion'),
+    [select('#adv-election')?.selectedOptions[0]?.textContent, yearSel?.selectedOptions[0]?.textContent]
+      .filter(Boolean).join(' · ') || '—');
+
+  const formulaName = FORMULAS.find(f => f.id === c.formula)?.name || c.formula;
+  updateText(select('#adv-sum-reparto'), `${ADV_LEVEL_LABEL[c.circunscripcion] || c.circunscripcion} · ${formulaName}`);
+
+  const barreras = [];
+  if (c.barrera1.activa) barreras.push(`${c.barrera1.valor}% ${ADV_BARRIER_LABEL[c.barrera1.nivel] || ''}`.trim());
+  if (c.barrera2.activa) barreras.push(`${c.barrera2.valor}% ${ADV_BARRIER_LABEL[c.barrera2.nivel] || ''}`.trim());
+  updateText(select('#adv-sum-barreras'), barreras.length ? barreras.join(' + ') : 'Sin barrera');
+
+  const seatsTxt = c.seatsMode === 'custom'
+    ? `${c.totalSeats} personalizados · mín. ${c.minPorCircunscripcion}`
+    : `${_advResult?.summary?.totalSeats ?? '—'} según la hoja`;
+  updateText(select('#adv-sum-escanos'), seatsTxt);
+}
+
+/** Conecta plegado y edición de todas las secciones. */
+function advInitSections() {
+  selectAll('.adv-cfg').forEach(section => {
+    advSetSectionEditable(section, false);
+
+    section.querySelector('.adv-cfg-toggle')?.addEventListener('click', () => advToggleSection(section));
+
+    section.querySelector('.adv-cfg-edit')?.addEventListener('click', () => {
+      const editing = section.classList.contains('editing');
+      if (editing) {
+        advSetSectionEditable(section, false);
+      } else {
+        // Editar implica abrir: no tendría sentido desbloquear algo oculto.
+        advToggleSection(section, true);
+        advSetSectionEditable(section, true);
+      }
+    });
+  });
+
+  select('#adv-cfg-collapse')?.addEventListener('click', () => {
+    const anyOpen = selectAll('.adv-cfg').some(s => s.classList.contains('open'));
+    selectAll('.adv-cfg').forEach(s => advToggleSection(s, !anyOpen));
+    updateText(select('#adv-cfg-collapse'), anyOpen ? 'Abrir todo' : 'Plegar todo');
+  });
+}
+
 /** Habilita/deshabilita bloques del formulario según su estado. */
 function advRefreshFormState() {
   select('#adv-b1-fs').dataset.disabled = String(!select('#adv-b1-on').checked);
@@ -333,6 +404,7 @@ function advRun() {
     `<div class="adv-notice warn"><strong>Aviso sobre los datos de origen:</strong> ${advEscape(w)}</div>`).join(''));
   advRenderSummary();
   advRenderResults();
+  advUpdateSummaries();
 }
 
 function advRenderSummary() {
@@ -420,29 +492,38 @@ function advNationalCard() {
 
 /* ── Resultados por circunscripción ────────────────────────── */
 
+/**
+ * La agrupación sigue al nivel de circunscripción elegido:
+ *  - provincial: cada comunidad agrupa sus provincias.
+ *  - autonómica: cada comunidad es ya una circunscripción, así que se
+ *    muestra directamente, sin anidar un grupo de un solo elemento.
+ *  - estatal: una única circunscripción, sin agrupar.
+ */
 function advDistrictsCard() {
   const r = _advResult;
   const level = _advConfig.circunscripcion;
 
   if (level === 'nacional') {
     return `<div class="card">
-      <div class="card-header"><span class="dot"></span>Circunscripción única</div>
+      <div class="card-header"><span class="dot"></span>Circunscripción estatal única</div>
       <div style="padding:10px 12px">${advDistrictHTML(r.districts[0], true)}</div>
     </div>`;
   }
 
-  // Agrupación por comunidad autónoma (por nombre: los códigos pueden tener erratas).
+  // A nivel autonómico cada circunscripción es su propia comunidad; a nivel
+  // provincial se agrupan por nombre de comunidad (los códigos pueden tener
+  // erratas en la hoja).
   const groups = new Map();
   r.districts.forEach(d => {
-    const k = d.ccaaName || d.name;
+    const k = level === 'ccaa' ? d.name : (d.ccaaName || d.name);
     if (!groups.has(k)) groups.set(k, []);
     groups.get(k).push(d);
   });
 
   const body = [...groups.entries()].map(([ccaa, ds]) => {
-    const seats  = ds.reduce((s, d) => s + d.seats, 0);
-    const votes  = ds.reduce((s, d) => s + d.validVotes, 0);
-    const open   = !_advCollapsed.has(ccaa);
+    const seats = ds.reduce((s, d) => s + d.seats, 0);
+    const votes = ds.reduce((s, d) => s + d.validVotes, 0);
+    const open  = !_advCollapsed.has(ccaa);
 
     // Composición de escaños de la comunidad para la barra apilada.
     const comp = new Map();
@@ -452,11 +533,22 @@ function advDistrictsCard() {
     const stack = [...comp.values()].sort((a, b) => b.seats - a.seats)
       .map(x => `<span style="width:${(x.seats / Math.max(1, seats) * 100).toFixed(2)}%;background:${advPartyColor(x.p)}" title="${advEscape(x.p.siglas || x.p.name)}: ${x.seats}"></span>`).join('');
 
+    // Con circunscripción autonómica el grupo ya es la circunscripción: su
+    // cuerpo es la tabla de resultados, no otra ficha anidada.
+    const inner = level === 'ccaa'
+      ? `<div style="padding:6px 10px 10px">${advDistrictHTML(ds[0], true, true)}</div>`
+      : ds.map(d => advDistrictHTML(d, false)).join('');
+
+    const nProv = ds.reduce((s2, d) => s2 + (d.members?.length || 1), 0);
+    const meta = level === 'ccaa'
+      ? `${nProv} provincia${nProv === 1 ? '' : 's'} agrupadas`
+      : `${ds.length} circunscripci${ds.length === 1 ? 'ón' : 'ones'}`;
+
     return `<div class="adv-ccaa">
       <button class="adv-ccaa-header" data-ccaa="${advEscape(ccaa)}" aria-expanded="${open}">
         <span class="adv-ccaa-arrow">${open ? '▼' : '▶'}</span>
         <span class="adv-ccaa-name">${advEscape(ccaa)}</span>
-        <span class="adv-ccaa-meta">${ds.length} circunscripci${ds.length === 1 ? 'ón' : 'ones'}</span>
+        <span class="adv-ccaa-meta">${advEscape(meta)}</span>
         <span class="adv-ccaa-seats">
           <span class="adv-stack">${stack}</span>
           <span class="adv-ccaa-stat">${advNum(votes)} votos</span>
@@ -464,13 +556,17 @@ function advDistrictsCard() {
         </span>
       </button>
       <div class="adv-ccaa-body" data-ccaa-body="${advEscape(ccaa)}" ${open ? '' : 'hidden'}>
-        ${ds.map(d => advDistrictHTML(d, false)).join('')}
+        ${inner}
       </div>
     </div>`;
   }).join('');
 
+  const title = level === 'ccaa'
+    ? 'Resultados por comunidad autónoma'
+    : 'Resultados por provincia, agrupados por comunidad';
+
   return `<div class="card">
-    <div class="card-header"><span class="dot"></span>Resultados por circunscripción
+    <div class="card-header"><span class="dot"></span>${title}
       <span class="adv-toolbar">
         <button class="adv-mini-btn" id="adv-expand-all">Expandir todo</button>
         <button class="adv-mini-btn" id="adv-collapse-all">Colapsar todo</button>
@@ -482,7 +578,7 @@ function advDistrictsCard() {
 
 const ADV_VISIBLE_ROWS = 6;
 
-function advDistrictHTML(d, alwaysFull) {
+function advDistrictHTML(d, alwaysFull, hideHead) {
   const expanded = alwaysFull || _advExpandedDistricts.has(d.id);
   const rows = d.results;
   // Se muestran siempre las candidaturas con escaño y las bloqueadas por barrera
@@ -512,12 +608,16 @@ function advDistrictHTML(d, alwaysFull) {
     </tr>`;
   };
 
-  return `<div class="adv-district">
-    <div class="adv-district-head">
+  // Con circunscripción autonómica la cabecera del grupo ya da nombre, votos
+  // y escaños: repetirlos aquí sería ruido.
+  const head = hideHead ? '' : `<div class="adv-district-head">
       <span class="adv-district-name">${advEscape(d.name)}</span>
       <span class="adv-district-meta">${advNum(d.validVotes)} votos válidos${d.members.length > 1 ? ` · ${d.members.length} provincias` : ''}</span>
       <span class="adv-district-seats"><b>${d.seats}</b> ${advEscape(seatWord)}${showReal && realTotal !== d.seats ? ` · ${realTotal} reales` : ''}</span>
-    </div>
+    </div>`;
+
+  return `<div class="adv-district">
+    ${head}
     <div class="adv-district-table-scroll">
     <table>
       <thead><tr>
@@ -574,6 +674,7 @@ function advAttachResultHandlers() {
 function advInit() {
   advBuildElectionOptions();
   advBuildFormulaOptions();
+  advInitSections();
 
   ['#adv-year', '#adv-level', '#adv-formula', '#adv-b1-on', '#adv-b1-level', '#adv-b1-val',
    '#adv-b2-on', '#adv-b2-level', '#adv-b2-val', '#adv-blanco',

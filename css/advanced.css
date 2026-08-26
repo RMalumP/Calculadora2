@@ -393,3 +393,146 @@
   .adv-district-seats { margin-left: 0; }
   .adv-summary-item { flex-basis: 50%; }
 }
+
+/* ── PANEL DE CONFIGURACIÓN PLEGABLE ─────────────────────────
+   Cada sección se muestra plegada con un resumen de su estado y sólo
+   admite cambios tras pulsar «Editar», para que el panel no crezca de
+   más ni se corte en pantallas bajas. */
+
+.adv-cfg-body { gap: 0; padding: 0; }
+
+.param-card-header { display: flex; align-items: center; gap: 8px; }
+
+.adv-collapse-all {
+  margin-left: auto;
+  background: none;
+  border: 1px solid rgba(255,255,255,0.2);
+  color: #bcb4aa;
+  border-radius: var(--radius);
+  padding: 2px 7px;
+  font-family: 'Source Sans 3', sans-serif;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.adv-collapse-all:hover { background: rgba(255,255,255,0.12); color: #fff; }
+
+.adv-cfg { border-bottom: 1px solid var(--border-light); }
+.adv-cfg:last-of-type { border-bottom: none; }
+
+.adv-cfg-head {
+  /* Anula el estilo del <header> global de la página, que es un selector de
+     elemento y alcanzaría también a estas cabeceras de sección. */
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 0 10px 0 4px;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  color: var(--text);
+}
+
+.adv-cfg-toggle {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 9px 4px;
+  font-family: 'Source Sans 3', sans-serif;
+  text-align: left;
+  color: var(--text);
+}
+.adv-cfg-toggle:hover .adv-cfg-name { color: var(--accent); }
+
+.adv-cfg-caret {
+  flex-shrink: 0;
+  font-size: 0.65rem;
+  color: var(--accent);
+  transition: transform 0.18s ease;
+  display: inline-block;
+}
+.adv-cfg.open .adv-cfg-caret { transform: rotate(90deg); }
+
+.adv-cfg-name {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  white-space: nowrap;
+  transition: color 0.15s;
+}
+
+/* El resumen va en su propia línea: en un panel estrecho, compartirla con el
+   título obligaba a recortarlo casi siempre. */
+.adv-cfg-summary {
+  display: block;
+  width: 100%;
+  padding-left: 15px;
+  font-size: 0.74rem;
+  color: var(--accent);
+  font-weight: 600;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.adv-cfg.open .adv-cfg-summary { display: none; }
+
+.adv-cfg-edit {
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: var(--radius);
+  padding: 3px 9px;
+  font-family: 'Source Sans 3', sans-serif;
+  font-size: 0.66rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.adv-cfg-edit:hover { border-color: var(--accent); color: var(--accent); }
+.adv-cfg.editing .adv-cfg-edit {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.adv-cfg-content {
+  display: none;
+  flex-direction: column;
+  gap: 12px;
+  padding: 2px 12px 14px;
+}
+.adv-cfg.open .adv-cfg-content { display: flex; }
+
+/* Mientras no se pulsa «Editar», la sección se ve pero no se toca. */
+.adv-cfg-content[data-locked="true"] { opacity: 0.55; pointer-events: none; }
+
+.adv-cfg-actions { padding: 12px; border-top: 1px solid var(--border-light); }
+.adv-cfg-actions .adv-mini-btn {
+  flex: 1;
+  border-color: var(--border);
+  color: var(--text-muted);
+  padding: 6px 8px;
+}
+
+/* El panel no debe crecer más que la ventana: se desplaza por dentro. */
+.adv-config .param-card {
+  max-height: calc(100vh - 90px);
+  display: flex;
+  flex-direction: column;
+}
+.adv-config .adv-cfg-body { overflow-y: auto; flex: 1; min-height: 0; }
+
+.adv-cfg-titleline { display: flex; align-items: center; gap: 7px; }
