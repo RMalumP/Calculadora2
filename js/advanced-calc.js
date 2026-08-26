@@ -93,12 +93,15 @@ function advApplyVoteEdits(districts, edits) {
   if (!edits) return;
   districts.forEach(d => {
     const e = edits[d.id];
-    if (!e || !e.votes) return;
-    Object.entries(e.votes).forEach(([key, v]) => {
+    if (!e) return;
+    Object.entries(e.votes || {}).forEach(([key, v]) => {
       // Se conserva la clave aunque queden 0 votos: si se borrara, la fila
       // desaparecería de la tabla y no habría manera de devolverle votos.
       d.partyVotes.set(key, Math.max(0, Math.round(Number(v) || 0)));
     });
+    // Las candidaturas retiradas de esta circunscripción se van del todo,
+    // a diferencia de las que se dejan a cero.
+    (e.removed || []).forEach(key => d.partyVotes.delete(key));
   });
 }
 
@@ -244,7 +247,9 @@ function advCalculate(data, config, edits) {
   const partyMeta = new Map(data.parties.map(p => [p.key, p]));
 
   districts.forEach(d => {
-    const editedKeys = new Set(Object.keys(edits?.[d.id]?.votes || {}));
+    const removedKeys = new Set(edits?.[d.id]?.removed || []);
+    const editedKeys = new Set(
+      Object.keys(edits?.[d.id]?.votes || {}).filter(k => !removedKeys.has(k)));
     const ok = eligibility.get(d.id);
     const contenders = [...d.partyVotes.entries()]
       .filter(([k, v]) => v > 0 && ok.has(k))

@@ -181,6 +181,7 @@ registerTab('advanced', 'tab-content', String.raw`
             <div class="adv-row adv-cfg-actions">
               <button class="adv-mini-btn" id="adv-reset">Valores de la hoja</button>
               <button class="adv-mini-btn" id="adv-reload">Recargar datos</button>
+              <button class="adv-mini-btn" id="adv-meta-btn">Metadatos</button>
             </div>
 
           </div>
@@ -188,4 +189,16 @@ registerTab('advanced', 'tab-content', String.raw`
       </aside>
 
     </div>
+`);
+
+/* Ventana de metadatos: lo que se ha leído de la hoja y cómo se ha
+   interpretado. Vive fuera de la pestaña para poder mostrarse por encima. */
+registerTab('advmeta', 'adv-meta-overlay', String.raw`
+  <div class="adv-meta-dialog" role="dialog" aria-label="Metadatos de la hoja">
+    <div class="adv-meta-head">
+      <span>Metadatos de la hoja</span>
+      <button type="button" class="adv-meta-close" id="adv-meta-close" title="Cerrar">✕</button>
+    </div>
+    <div class="adv-meta-body" id="adv-meta-body"></div>
+  </div>
 `);

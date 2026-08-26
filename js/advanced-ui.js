@@ -35,6 +35,16 @@ let _advExpandedDistricts = new Set();
  */
 let _advEdits = {};
 let _advEditMode = false;
+
+/**
+ * Candidaturas creadas a mano, que no existen en la hoja. Se guardan aparte
+ * porque son globales: una vez creada, puede añadirse a varias
+ * circunscripciones. { [clave]: { key, name, siglas } }
+ */
+let _advCustomParties = {};
+
+/** Colores elegidos a mano, por candidatura. Mandan sobre la paleta. */
+let _advPartyColors = {};
 let _advLoading = false;
 let _advLoaded  = false;
 
@@ -47,6 +57,7 @@ function advMesLabel(mes) {
 }
 
 function advPartyColor(p) {
+  if (p.key && _advPartyColors[p.key]) return _advPartyColors[p.key];
   const k = (p.siglas || p.name || '').toUpperCase();
   if (ADV_PARTY_COLORS[k]) return ADV_PARTY_COLORS[k];
   if (_advColorCache.has(k)) return _advColorCache.get(k);
@@ -74,6 +85,8 @@ async function advLoadElection(force) {
 
   // Los cambios de sesión se refieren a los datos que se van a sustituir.
   _advEdits = {};
+  _advCustomParties = {};
+  _advPartyColors = {};
   const key = select('#adv-election')?.value || ADV_ELECTIONS[0].key;
   advRenderStatus(`<div class="adv-loading"><span class="adv-spinner"></span>Cargando datos electorales desde Google Sheets…</div>`);
   select('#adv-results').innerHTML = '';
@@ -384,7 +397,8 @@ function advRun() {
   const rows = advSelectedRows();
   advUpdateHeader(rows);
   try {
-    _advResult = advCalculate({ ..._advParties, rows }, _advConfig, _advEdits);
+    const parties = [..._advParties.parties, ...Object.values(_advCustomParties)];
+    _advResult = advCalculate({ ..._advParties, parties, rows }, _advConfig, _advEdits);
   } catch (err) {
     advRenderStatus(`<div class="adv-notice error"><strong>Error al calcular.</strong><br>${advEscape(err.message)}</div>`);
     return;
@@ -585,6 +599,12 @@ function advDistrictHTML(d, alwaysFull, hideHead) {
 
   const edited = _advEdits[d.id] || {};
 
+  // Un orden puesto a mano manda sobre el de escaños y votos.
+  if (edited.order) {
+    const pos = new Map(edited.order.map((k, i) => [k, i]));
+    rows.sort((a, b) => (pos.has(a.key) ? pos.get(a.key) : 1e6) - (pos.has(b.key) ? pos.get(b.key) : 1e6));
+  }
+
   const tr = p => {
     const color = advPartyColor(p);
     const cls = p.blockedReason ? 'adv-blocked' : p.seats === 0 ? 'adv-noseat' : '';
@@ -594,9 +614,22 @@ function advDistrictHTML(d, alwaysFull, hideHead) {
                 value="${p.votes}" data-district="${advEscape(d.id)}" data-party="${advEscape(p.key)}"
                 aria-label="Votos de ${advEscape(p.siglas || p.name)} en ${advEscape(d.name)}">`
       : advNum(p.votes);
-    return `<tr class="${cls}${isEdited ? ' adv-row-edited' : ''}">
+
+    // En modo edición cada fila lleva los mismos controles que la calculadora
+    // básica: arrastrar para reordenar, eliminar y color.
+    const controls = _advEditMode
+      ? `<span class="adv-row-tools">
+           <span class="adv-drag-handle" title="Arrastrar para reordenar" data-party="${advEscape(p.key)}">⠿</span>
+           <button type="button" class="adv-row-del" title="Quitar de esta circunscripción"
+                   data-district="${advEscape(d.id)}" data-party="${advEscape(p.key)}">✕</button>
+           <input type="color" class="adv-row-color" value="${color}" title="Color de la candidatura"
+                  data-party="${advEscape(p.key)}">
+         </span>`
+      : `<span class="color-swatch" style="background:${color}"></span>`;
+
+    return `<tr class="${cls}${isEdited ? ' adv-row-edited' : ''}" data-party="${advEscape(p.key)}">
       <td><div class="adv-party-cell">
-        <span class="color-swatch" style="background:${color}"></span>
+        ${controls}
         <span class="adv-party-name" title="${advEscape(p.name)}">${advEscape(p.siglas || p.name)}</span>
         ${p.blockedReason ? `<span class="adv-blocked-tag" title="No supera la barrera electoral">barrera ${advEscape(p.blockedReason)}</span>` : ''}
       </div></td>
@@ -636,7 +669,7 @@ function advDistrictHTML(d, alwaysFull, hideHead) {
       ${showReal ? '<td></td>' : ''}
     </tr></tfoot>` : '';
 
-  return `<div class="adv-district">
+  return `<div class="adv-district" data-district-id="${advEscape(d.id)}">
     ${head}
     <div class="adv-district-table-scroll">
     <table>
@@ -651,6 +684,9 @@ function advDistrictHTML(d, alwaysFull, hideHead) {
       ${foot}
     </table>
     </div>
+    ${_advEditMode ? `<button class="adv-add-btn" data-district="${advEscape(d.id)}">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5.5" stroke="currentColor" stroke-width="1.1"/><path d="M6 3v6M3 6h6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Añadir candidatura</button>` : ''}
     ${hidden > 0 ? `<button class="adv-more-btn" data-district="${advEscape(d.id)}">▼ Ver ${hidden} candidatura${hidden === 1 ? '' : 's'} más</button>` : ''}
     ${expanded && !alwaysFull && rows.length > ADV_VISIBLE_ROWS ? `<button class="adv-more-btn" data-district="${advEscape(d.id)}">▲ Ocultar</button>` : ''}
   </div>`;
@@ -661,7 +697,11 @@ function advDistrictHTML(d, alwaysFull, hideHead) {
 /** Nº de valores cambiados respecto a la hoja. */
 function advCountEdits() {
   return Object.values(_advEdits).reduce((n, e) =>
-    n + (e.seats != null ? 1 : 0) + Object.keys(e.votes || {}).length, 0);
+    n + (e.seats != null ? 1 : 0)
+      + Object.keys(e.votes || {}).length
+      + (e.removed?.length || 0)
+      + (e.order ? 1 : 0), 0)
+    + Object.keys(_advPartyColors).length;
 }
 
 function advEditsFor(districtId) {
@@ -727,7 +767,8 @@ let _advPristine = null;
 function advComputePristine() {
   if (!_advParties) { _advPristine = null; return; }
   try {
-    _advPristine = advCalculate({ ..._advParties, rows: advSelectedRows() }, _advConfig, null);
+    const parties = [..._advParties.parties, ...Object.values(_advCustomParties)];
+    _advPristine = advCalculate({ ..._advParties, parties, rows: advSelectedRows() }, _advConfig, null);
   } catch (e) {
     _advPristine = null;
   }
@@ -744,6 +785,151 @@ function advOriginalVotes(districtId, partyKey) {
   return d.partyVotes.get(partyKey) || 0;
 }
 
+/* ── Alta, baja y orden de candidaturas por circunscripción ── */
+
+/** Todas las candidaturas conocidas: las de la hoja más las creadas a mano. */
+function advAllParties() {
+  return [...(_advParties?.parties || []), ...Object.values(_advCustomParties)];
+}
+
+/** Quita una candidatura de una circunscripción (sólo de esa). */
+function advRemoveParty(districtId, partyKey) {
+  const entry = advEditsFor(districtId);
+  if (!entry.removed) entry.removed = [];
+  if (!entry.removed.includes(partyKey)) entry.removed.push(partyKey);
+  if (entry.votes) delete entry.votes[partyKey];
+  if (entry.order) entry.order = entry.order.filter(k => k !== partyKey);
+  advRun();
+}
+
+/** Añade una candidatura ya conocida a una circunscripción, con 0 votos. */
+function advAddPartyToDistrict(districtId, partyKey) {
+  const entry = advEditsFor(districtId);
+  if (entry.removed) entry.removed = entry.removed.filter(k => k !== partyKey);
+  if (entry.votes[partyKey] === undefined) entry.votes[partyKey] = 0;
+  advRun();
+}
+
+/** Crea una candidatura que no está en la hoja y la añade a la circunscripción. */
+function advCreateParty(districtId, name, siglas) {
+  const clean = String(name || '').trim();
+  const sig = String(siglas || '').trim().toUpperCase();
+  if (!clean && !sig) return;
+  let key = sig || clean;
+  // La clave identifica a la candidatura en todo el cálculo: no puede chocar.
+  const taken = new Set(advAllParties().map(p => p.key));
+  let n = 2;
+  while (taken.has(key)) key = `${sig || clean} (${n++})`;
+  _advCustomParties[key] = { key, name: clean || sig, siglas: sig };
+  advAddPartyToDistrict(districtId, key);
+}
+
+/** Diálogo para elegir una candidatura existente o crear una nueva. */
+function advOpenAddParty(districtId, anchorBtn) {
+  select('.adv-add-pop')?.remove();
+
+  const district = _advResult?.districts.find(x => x.id === districtId);
+  const present = new Set((district?.results || []).map(p => p.key));
+  const missing = advAllParties().filter(p => !present.has(p.key))
+    .sort((a, b) => (a.siglas || a.name).localeCompare(b.siglas || b.name, 'es'));
+
+  const pop = document.createElement('div');
+  pop.className = 'adv-add-pop';
+  pop.innerHTML = `
+    <div class="adv-add-pop-title">Añadir candidatura a ${advEscape(district?.name || '')}</div>
+    ${missing.length ? `
+      <label class="adv-add-lbl">De la hoja</label>
+      <div class="adv-row">
+        <div class="adv-select-wrap" style="flex:1">
+          <select class="adv-add-select">
+            ${missing.map(p => `<option value="${advEscape(p.key)}">${advEscape(p.siglas ? p.siglas + ' · ' + p.name : p.name)}</option>`).join('')}
+          </select>
+        </div>
+        <button type="button" class="adv-mini-btn adv-add-existing">Añadir</button>
+      </div>` : `<div class="adv-add-lbl">Ya están todas las candidaturas conocidas.</div>`}
+    <div class="adv-divider"></div>
+    <label class="adv-add-lbl">Nueva candidatura</label>
+    <div class="adv-row">
+      <input type="text" class="adv-add-siglas" placeholder="Siglas" maxlength="12" style="width:80px">
+      <input type="text" class="adv-add-name" placeholder="Nombre" style="flex:1">
+      <button type="button" class="adv-mini-btn adv-add-new">Crear</button>
+    </div>
+    <button type="button" class="adv-add-close" title="Cerrar">✕</button>`;
+
+  document.body.appendChild(pop);
+  const r = anchorBtn.getBoundingClientRect();
+  pop.style.top  = `${window.scrollY + r.bottom + 6}px`;
+  pop.style.left = `${Math.min(window.scrollX + r.left, window.scrollX + document.documentElement.clientWidth - pop.offsetWidth - 12)}px`;
+
+  const close = () => pop.remove();
+  pop.querySelector('.adv-add-close').addEventListener('click', close);
+  pop.querySelector('.adv-add-existing')?.addEventListener('click', () => {
+    advAddPartyToDistrict(districtId, pop.querySelector('.adv-add-select').value);
+    close();
+  });
+  pop.querySelector('.adv-add-new').addEventListener('click', () => {
+    advCreateParty(districtId, pop.querySelector('.adv-add-name').value, pop.querySelector('.adv-add-siglas').value);
+    close();
+  });
+  pop.querySelectorAll('input').forEach(i => i.addEventListener('keydown', e => {
+    if (e.key === 'Enter') pop.querySelector('.adv-add-new').click();
+    if (e.key === 'Escape') close();
+  }));
+
+  setTimeout(() => document.addEventListener('mousedown', function once(ev) {
+    if (!pop.contains(ev.target)) { close(); document.removeEventListener('mousedown', once); }
+  }), 0);
+}
+
+/** Reordenar filas arrastrando, como en la tabla de la calculadora básica. */
+function advAttachRowDrag(scope) {
+  scope.querySelectorAll('.adv-drag-handle').forEach(handle => {
+    handle.addEventListener('mousedown', e => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      const tr = handle.closest('tr');
+      const tbody = tr.parentElement;
+      tr.classList.add('dragging');
+
+      const rows = () => [...tbody.querySelectorAll('tr[data-party]')];
+      const clear = () => rows().forEach(r => r.classList.remove('drag-over-above', 'drag-over-below'));
+
+      const onMove = ev => {
+        clear();
+        for (const row of rows()) {
+          if (row === tr) continue;
+          const rect = row.getBoundingClientRect();
+          if (ev.clientY >= rect.top && ev.clientY <= rect.bottom) {
+            row.classList.add(ev.clientY < rect.top + rect.height / 2 ? 'drag-over-above' : 'drag-over-below');
+            break;
+          }
+        }
+      };
+
+      const onUp = () => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        const above = tbody.querySelector('.drag-over-above');
+        const below = tbody.querySelector('.drag-over-below');
+        if (above && above !== tr) tbody.insertBefore(tr, above);
+        else if (below && below !== tr) tbody.insertBefore(tr, below.nextElementSibling);
+        clear();
+        tr.classList.remove('dragging');
+
+        // El nuevo orden se guarda para que sobreviva al recálculo.
+        const districtId = handle.closest('.adv-district')?.dataset.districtId;
+        if (districtId) {
+          advEditsFor(districtId).order = rows().map(r => r.dataset.party);
+          advRun();
+        }
+      };
+
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  });
+}
+
 function advToggleEditMode() {
   _advEditMode = !_advEditMode;
   advRefreshEditBar();
@@ -754,7 +940,110 @@ function advResetEdits() {
   if (!advCountEdits()) return;
   if (!confirm('¿Descartar todos los cambios y volver a los datos de la hoja?')) return;
   _advEdits = {};
+  _advCustomParties = {};
+  _advPartyColors = {};
   advRun();
+}
+
+/* ── Metadatos de la hoja ──────────────────────────────────── */
+
+/**
+ * Muestra qué se ha leído de la hoja y cómo se ha interpretado: sirve tanto
+ * para consultar la ficha de la elección como para diagnosticar si algún
+ * dato no se está reconociendo bien.
+ */
+function advRenderMetaDialog() {
+  const body = select('#adv-meta-body');
+  if (!body) return;
+
+  if (!_advParties) {
+    body.innerHTML = `<div class="adv-notice info">Todavía no se han cargado los datos.</div>`;
+    return;
+  }
+
+  const m = _advParties.meta || {};
+  const dbg = _advParties.debug || {};
+  const rows = advSelectedRows();
+  const dates = advElectionDates(_advParties);
+  const nivel = { circunscripcion: 'de circunscripción', ccaa: 'de comunidad', nacional: 'nacional' };
+
+  const dl = pairs => `<dl class="adv-meta-list">${pairs
+    .filter(([, v]) => v !== '' && v != null)
+    .map(([k, v]) => `<dt>${advEscape(k)}</dt><dd>${v}</dd>`).join('')}</dl>`;
+
+  const seatsTotal = rows.reduce((a, r) => a + r.seatsBase, 0);
+  const censo = rows.reduce((a, r) => a + r.censoTotal, 0);
+  const votantes = rows.reduce((a, r) => a + r.votantesTotal, 0);
+
+  body.innerHTML = `
+    <section>
+      <h4>Elección</h4>
+      ${dl([
+        ['Tipo', advEscape(m.tipo || '—')],
+        ['Subtipo', advEscape(m.subtipo || '—')],
+        ['País', advEscape(m.pais || '—')],
+        ['Convocatorias en la hoja', dates.map(d => advEscape(`${d.anio}${d.mes ? ' · ' + advMesLabel(d.mes) : ''}`)).join(', ') || '—'],
+      ])}
+    </section>
+    <section>
+      <h4>Reglas declaradas en la hoja</h4>
+      ${dl([
+        ['Circunscripción base', advEscape(m.circunscripcionDefault || '—')],
+        ['Barrera electoral', m.barrera1?.valor ? `${m.barrera1.valor}% ${advEscape(nivel[m.barrera1.nivel] || m.barrera1.nivel)}` : 'Sin barrera'],
+        ['Segunda barrera', m.barrera2 ? `${m.barrera2.valor}% ${advEscape(nivel[m.barrera2.nivel] || m.barrera2.nivel)}` : 'No'],
+      ])}
+    </section>
+    <section>
+      <h4>Datos cargados</h4>
+      ${dl([
+        ['Circunscripciones de origen', rows.length],
+        ['Candidaturas', _advParties.parties.length],
+        ['Escaños según la hoja', advNum(seatsTotal)],
+        ['Censo electoral', advNum(censo)],
+        ['Total votantes', advNum(votantes)],
+      ])}
+    </section>
+    <section>
+      <h4>Lectura de la hoja</h4>
+      ${dl([
+        ['Versión del lector', advEscape(dbg.parserVersion || '—')],
+        ['Filas recibidas', dbg.totalRowsFromSheet ?? '—'],
+        ['Columnas', dbg.numCols ?? '—'],
+        ['Cabecera desde etiquetas', dbg.headerFromLabels ? 'sí' : 'no'],
+        ['Primeras candidaturas', (dbg.partySample || []).map(advEscape).join('<br>') || '—'],
+      ])}
+      <details class="adv-meta-details">
+        <summary>Columnas reconocidas</summary>
+        <div class="adv-meta-mono">${advEscape(JSON.stringify(dbg.metaCols || {}, null, 1))}</div>
+      </details>
+      <details class="adv-meta-details">
+        <summary>Cabeceras leídas</summary>
+        <div class="adv-meta-mono">${(dbg.headerRowTexts || []).map(advEscape).join(' · ') || '—'}</div>
+      </details>
+    </section>
+    <div class="adv-meta-foot">
+      <a href="https://docs.google.com/spreadsheets/d/${ADV_SHEET_ID}/edit" target="_blank" rel="noopener">Abrir la hoja de cálculo ↗</a>
+    </div>`;
+}
+
+function advToggleMetaDialog(open) {
+  const overlay = select('#advmeta-tab');
+  if (!overlay) return;
+  const willOpen = open !== undefined ? open : !overlay.classList.contains('open');
+  if (willOpen) advRenderMetaDialog();
+  overlay.classList.toggle('open', willOpen);
+}
+
+function advInitMetaDialog() {
+  select('#adv-meta-btn')?.addEventListener('click', () => advToggleMetaDialog(true));
+  select('#adv-meta-close')?.addEventListener('click', () => advToggleMetaDialog(false));
+  select('#advmeta-tab')?.addEventListener('mousedown', e => {
+    // Pulsar fuera del recuadro cierra la ventana.
+    if (e.target.id === 'advmeta-tab') advToggleMetaDialog(false);
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') advToggleMetaDialog(false);
+  });
 }
 
 function advInitEditBar() {
@@ -779,6 +1068,24 @@ function advAttachResultHandlers() {
       advSetEdit(inp.dataset.district, 'seats', null, inp.value));
     inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); });
   });
+
+  selectAll('#adv-results .adv-row-del').forEach(btn => {
+    btn.addEventListener('click', () => advRemoveParty(btn.dataset.district, btn.dataset.party));
+  });
+
+  selectAll('#adv-results .adv-row-color').forEach(inp => {
+    inp.addEventListener('change', () => {
+      _advPartyColors[inp.dataset.party] = inp.value;
+      advRun();
+    });
+  });
+
+  selectAll('#adv-results .adv-add-btn').forEach(btn => {
+    btn.addEventListener('click', () => advOpenAddParty(btn.dataset.district, btn));
+  });
+
+  const results = select('#adv-results');
+  if (results && _advEditMode) advAttachRowDrag(results);
 
   selectAll('#adv-results .adv-ccaa-header').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -818,6 +1125,7 @@ function advInit() {
   advBuildFormulaOptions();
   advInitSections();
   advInitEditBar();
+  advInitMetaDialog();
 
   ['#adv-year', '#adv-level', '#adv-formula', '#adv-b1-on', '#adv-b1-level', '#adv-b1-val',
    '#adv-b2-on', '#adv-b2-level', '#adv-b2-val', '#adv-blanco',
