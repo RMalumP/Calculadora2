@@ -77,6 +77,41 @@ function advBuildDistricts(data, config) {
   return districts;
 }
 
+/* ── Ediciones de la sesión ────────────────────────────────── */
+
+/**
+ * Aplica sobre las circunscripciones ya agregadas los cambios que haya hecho
+ * la persona usuaria en esta sesión. No tocan la hoja de origen: son una capa
+ * por encima, identificada por el id de circunscripción, que se descarta al
+ * restaurar.
+ *
+ * Los votos se sustituyen antes de repartir, así que el resto del cálculo
+ * —porcentajes, barreras y totales, que se derivan de la suma de votos— se
+ * ajusta solo.
+ */
+function advApplyVoteEdits(districts, edits) {
+  if (!edits) return;
+  districts.forEach(d => {
+    const e = edits[d.id];
+    if (!e || !e.votes) return;
+    Object.entries(e.votes).forEach(([key, v]) => {
+      // Se conserva la clave aunque queden 0 votos: si se borrara, la fila
+      // desaparecería de la tabla y no habría manera de devolverle votos.
+      d.partyVotes.set(key, Math.max(0, Math.round(Number(v) || 0)));
+    });
+  });
+}
+
+/** Sustituye el número de escaños de una circunscripción tras el reparto. */
+function advApplySeatEdits(districts, edits) {
+  if (!edits) return;
+  districts.forEach(d => {
+    const e = edits[d.id];
+    if (!e || e.seats == null) return;
+    d.seats = Math.max(0, Math.round(Number(e.seats) || 0));
+  });
+}
+
 /* ── Reparto de escaños entre circunscripciones ────────────── */
 
 /**
@@ -195,14 +230,21 @@ function advComputeEligibility(districts, config) {
  * Calcula el reparto completo. Devuelve las circunscripciones con resultados,
  * el recuento nacional por partido y los avisos detectados.
  */
-function advCalculate(data, config) {
+function advCalculate(data, config, edits) {
   const districts = advBuildDistricts(data, config);
+  // Los votos se sustituyen antes de calcular nada, para que barreras y
+  // porcentajes partan ya de los valores editados.
+  advApplyVoteEdits(districts, edits);
   const apport    = advApportionSeats(districts, config);
+  // Los escaños se sustituyen después del reparto: un valor puesto a mano
+  // manda sobre los de la hoja y sobre el reparto automático.
+  advApplySeatEdits(districts, edits);
   const { eligibility, blockedBy } = advComputeEligibility(districts, config);
 
   const partyMeta = new Map(data.parties.map(p => [p.key, p]));
 
   districts.forEach(d => {
+    const editedKeys = new Set(Object.keys(edits?.[d.id]?.votes || {}));
     const ok = eligibility.get(d.id);
     const contenders = [...d.partyVotes.entries()]
       .filter(([k, v]) => v > 0 && ok.has(k))
@@ -218,7 +260,7 @@ function advCalculate(data, config) {
 
     d.validVotes = validVotes;
     d.results = [...d.partyVotes.entries()]
-      .filter(([, v]) => v > 0)
+      .filter(([k, v]) => v > 0 || editedKeys.has(k))
       .map(([k, v]) => ({
         key: k,
         name:   partyMeta.get(k)?.name || k,

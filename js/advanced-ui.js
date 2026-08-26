@@ -25,6 +25,16 @@ let _advConfig  = null;
 let _advColorCache = new Map();
 let _advCollapsed  = new Set();   // nombres de CCAA colapsadas
 let _advExpandedDistricts = new Set();
+
+/**
+ * Cambios hechos en esta sesión sobre los datos de la hoja.
+ * Estructura: { [idCircunscripcion]: { seats?: número, votes: { [partido]: número } } }
+ * Viven sólo en memoria: no se envían a Google Sheets ni alteran la hoja.
+ * Se indexan por circunscripción, así que cada nivel (provincia, comunidad o
+ * estatal) conserva sus propios cambios.
+ */
+let _advEdits = {};
+let _advEditMode = false;
 let _advLoading = false;
 let _advLoaded  = false;
 
@@ -62,6 +72,8 @@ async function advLoadElection(force) {
   _advLoading = true;
   if (force) advClearCache();
 
+  // Los cambios de sesión se refieren a los datos que se van a sustituir.
+  _advEdits = {};
   const key = select('#adv-election')?.value || ADV_ELECTIONS[0].key;
   advRenderStatus(`<div class="adv-loading"><span class="adv-spinner"></span>Cargando datos electorales desde Google Sheets…</div>`);
   select('#adv-results').innerHTML = '';
@@ -296,20 +308,10 @@ function advReadForm() {
 const ADV_LEVEL_LABEL = { provincia: 'Provincial', ccaa: 'Autonómica', nacional: 'Estatal' };
 const ADV_BARRIER_LABEL = { circunscripcion: 'circunscripción', ccaa: 'comunidad', nacional: 'nacional' };
 
-/** Abre o pliega una sección; al plegarla se vuelve a bloquear la edición. */
+/** Abre o pliega una sección de configuración. */
 function advToggleSection(section, open) {
   const willOpen = open !== undefined ? open : !section.classList.contains('open');
   section.classList.toggle('open', willOpen);
-  if (!willOpen) advSetSectionEditable(section, false);
-}
-
-/** Activa o bloquea los controles de una sección. */
-function advSetSectionEditable(section, editable) {
-  section.classList.toggle('editing', editable);
-  const content = section.querySelector('.adv-cfg-content');
-  if (content) content.dataset.locked = String(!editable);
-  const btn = section.querySelector('.adv-cfg-edit');
-  if (btn) btn.textContent = editable ? 'Hecho' : 'Editar';
 }
 
 /** Resumen de una línea con el estado de cada sección, visible al plegarla. */
@@ -336,23 +338,10 @@ function advUpdateSummaries() {
   updateText(select('#adv-sum-escanos'), seatsTxt);
 }
 
-/** Conecta plegado y edición de todas las secciones. */
+/** Conecta el plegado de todas las secciones de configuración. */
 function advInitSections() {
   selectAll('.adv-cfg').forEach(section => {
-    advSetSectionEditable(section, false);
-
     section.querySelector('.adv-cfg-toggle')?.addEventListener('click', () => advToggleSection(section));
-
-    section.querySelector('.adv-cfg-edit')?.addEventListener('click', () => {
-      const editing = section.classList.contains('editing');
-      if (editing) {
-        advSetSectionEditable(section, false);
-      } else {
-        // Editar implica abrir: no tendría sentido desbloquear algo oculto.
-        advToggleSection(section, true);
-        advSetSectionEditable(section, true);
-      }
-    });
   });
 
   select('#adv-cfg-collapse')?.addEventListener('click', () => {
@@ -395,16 +384,18 @@ function advRun() {
   const rows = advSelectedRows();
   advUpdateHeader(rows);
   try {
-    _advResult = advCalculate({ ..._advParties, rows }, _advConfig);
+    _advResult = advCalculate({ ..._advParties, rows }, _advConfig, _advEdits);
   } catch (err) {
     advRenderStatus(`<div class="adv-notice error"><strong>Error al calcular.</strong><br>${advEscape(err.message)}</div>`);
     return;
   }
   advRenderStatus(_advResult.warnings.map(w =>
     `<div class="adv-notice warn"><strong>Aviso sobre los datos de origen:</strong> ${advEscape(w)}</div>`).join(''));
+  advComputePristine();
   advRenderSummary();
   advRenderResults();
   advUpdateSummaries();
+  advRefreshEditBar();
 }
 
 function advRenderSummary() {
@@ -585,23 +576,31 @@ function advDistrictHTML(d, alwaysFull, hideHead) {
   // que habrían tenido opciones; el resto queda tras el desplegable.
   const primary = rows.filter(p => p.seats > 0);
   const rest    = rows.filter(p => p.seats === 0);
-  const shown   = expanded ? rows : [...primary, ...rest.slice(0, Math.max(0, ADV_VISIBLE_ROWS - primary.length))];
+  const shown   = (expanded || _advEditMode) ? rows : [...primary, ...rest.slice(0, Math.max(0, ADV_VISIBLE_ROWS - primary.length))];
   const hidden  = rows.length - shown.length;
 
   const seatWord = typeof currentSeatName === 'string' ? currentSeatName : 'escaños';
   const realTotal = [...d.realSeats.values()].reduce((a, b) => a + b, 0);
   const showReal  = _advConfig.seatsMode === 'sheet' && realTotal > 0;
 
+  const edited = _advEdits[d.id] || {};
+
   const tr = p => {
     const color = advPartyColor(p);
     const cls = p.blockedReason ? 'adv-blocked' : p.seats === 0 ? 'adv-noseat' : '';
-    return `<tr class="${cls}">
+    const isEdited = edited.votes && edited.votes[p.key] !== undefined;
+    const votesCell = _advEditMode
+      ? `<input type="number" class="adv-edit-votes${isEdited ? ' changed' : ''}" min="0" step="1"
+                value="${p.votes}" data-district="${advEscape(d.id)}" data-party="${advEscape(p.key)}"
+                aria-label="Votos de ${advEscape(p.siglas || p.name)} en ${advEscape(d.name)}">`
+      : advNum(p.votes);
+    return `<tr class="${cls}${isEdited ? ' adv-row-edited' : ''}">
       <td><div class="adv-party-cell">
         <span class="color-swatch" style="background:${color}"></span>
         <span class="adv-party-name" title="${advEscape(p.name)}">${advEscape(p.siglas || p.name)}</span>
         ${p.blockedReason ? `<span class="adv-blocked-tag" title="No supera la barrera electoral">barrera ${advEscape(p.blockedReason)}</span>` : ''}
       </div></td>
-      <td class="adv-num">${advNum(p.votes)}</td>
+      <td class="adv-num">${votesCell}</td>
       <td class="adv-num">${advPct(p.pct)}</td>
       <td class="adv-num">${p.seats > 0 ? `<span class="adv-seat-badge" style="background:${color}">${p.seats}</span>` : '—'}</td>
       ${showReal ? `<td class="adv-num adv-real-delta ${p.seats > p.realSeats ? 'up' : p.seats < p.realSeats ? 'down' : ''}">${p.realSeats || '—'}</td>` : ''}
@@ -610,11 +609,32 @@ function advDistrictHTML(d, alwaysFull, hideHead) {
 
   // Con circunscripción autonómica la cabecera del grupo ya da nombre, votos
   // y escaños: repetirlos aquí sería ruido.
+  const seatsEdited = edited.seats != null;
+  const seatsCell = _advEditMode
+    ? `<label class="adv-edit-seats-wrap">
+         <input type="number" class="adv-edit-seats${seatsEdited ? ' changed' : ''}" min="0" step="1"
+                value="${d.seats}" data-district="${advEscape(d.id)}"
+                aria-label="Escaños de ${advEscape(d.name)}">
+         <span>${advEscape(seatWord)}</span>
+       </label>`
+    : `<b>${d.seats}</b> ${advEscape(seatWord)}${showReal && realTotal !== d.seats ? ` · ${realTotal} reales` : ''}`;
+
   const head = hideHead ? '' : `<div class="adv-district-head">
       <span class="adv-district-name">${advEscape(d.name)}</span>
       <span class="adv-district-meta">${advNum(d.validVotes)} votos válidos${d.members.length > 1 ? ` · ${d.members.length} provincias` : ''}</span>
-      <span class="adv-district-seats"><b>${d.seats}</b> ${advEscape(seatWord)}${showReal && realTotal !== d.seats ? ` · ${realTotal} reales` : ''}</span>
+      <span class="adv-district-seats">${seatsCell}</span>
     </div>`;
+
+  // Con la tabla editable conviene ver el total de lo que se está tocando.
+  const sumVotes = shown.reduce((a, p) => a + p.votes, 0);
+  const sumSeats = shown.reduce((a, p) => a + p.seats, 0);
+  const foot = _advEditMode ? `<tfoot><tr class="adv-edit-total">
+      <td>Total mostrado</td>
+      <td class="adv-num">${advNum(sumVotes)}</td>
+      <td class="adv-num">${advPct(d.validVotes > 0 ? sumVotes / d.validVotes * 100 : 0)}</td>
+      <td class="adv-num">${sumSeats} / ${d.seats}</td>
+      ${showReal ? '<td></td>' : ''}
+    </tr></tfoot>` : '';
 
   return `<div class="adv-district">
     ${head}
@@ -628,6 +648,7 @@ function advDistrictHTML(d, alwaysFull, hideHead) {
         ${showReal ? `<th class="adv-num" style="width:12%" title="Escaños reales según la hoja">Reales</th>` : ''}
       </tr></thead>
       <tbody>${shown.map(tr).join('') || `<tr><td colspan="5" class="adv-empty">Sin datos.</td></tr>`}</tbody>
+      ${foot}
     </table>
     </div>
     ${hidden > 0 ? `<button class="adv-more-btn" data-district="${advEscape(d.id)}">▼ Ver ${hidden} candidatura${hidden === 1 ? '' : 's'} más</button>` : ''}
@@ -635,9 +656,130 @@ function advDistrictHTML(d, alwaysFull, hideHead) {
   </div>`;
 }
 
+/* ── Edición de los datos de la sesión ─────────────────────── */
+
+/** Nº de valores cambiados respecto a la hoja. */
+function advCountEdits() {
+  return Object.values(_advEdits).reduce((n, e) =>
+    n + (e.seats != null ? 1 : 0) + Object.keys(e.votes || {}).length, 0);
+}
+
+function advEditsFor(districtId) {
+  if (!_advEdits[districtId]) _advEdits[districtId] = { votes: {} };
+  if (!_advEdits[districtId].votes) _advEdits[districtId].votes = {};
+  return _advEdits[districtId];
+}
+
+/** Refresca la barra superior: contador de cambios y botón de restaurar. */
+function advRefreshEditBar() {
+  const n = advCountEdits();
+  const badge = select('#adv-edit-badge');
+  const reset = select('#adv-edit-reset');
+  const toggle = select('#adv-edit-toggle');
+  const bar = select('#adv-editbar');
+
+  if (badge) {
+    badge.hidden = n === 0;
+    updateText(badge, `${n} valor${n === 1 ? '' : 'es'} modificado${n === 1 ? '' : 's'}`);
+  }
+  if (reset) reset.hidden = n === 0;
+  if (toggle) toggle.innerHTML = _advEditMode
+    ? '<span class="adv-edit-icon">✓</span> Terminar edición'
+    : '<span class="adv-edit-icon">✎</span> Editar datos';
+  toggleClass(toggle, 'active', _advEditMode);
+  toggleClass(bar, 'editing', _advEditMode);
+  updateText(select('#adv-edit-note'), _advEditMode
+    ? 'Cambia los votos de cada candidatura o los escaños de cada circunscripción: el reparto se recalcula al momento.'
+    : 'Modifica votos y escaños de cada circunscripción. Los cambios son sólo de esta sesión: no tocan la hoja de datos.');
+}
+
+/**
+ * Aplica un valor editado y recalcula. Si coincide con el de la hoja se
+ * borra la anotación, para que el contador refleje sólo cambios reales.
+ */
+function advSetEdit(districtId, field, partyKey, rawValue) {
+  const district = _advResult?.districts.find(x => x.id === districtId);
+  if (!district) return;
+
+  const value = Math.max(0, Math.round(Number(rawValue) || 0));
+  const entry = advEditsFor(districtId);
+
+  if (field === 'seats') {
+    const original = advOriginalSeats(districtId);
+    if (original != null && value === original) delete entry.seats;
+    else entry.seats = value;
+  } else {
+    const original = advOriginalVotes(districtId, partyKey);
+    if (original != null && value === original) delete entry.votes[partyKey];
+    else entry.votes[partyKey] = value;
+  }
+
+  if (entry.seats == null && !Object.keys(entry.votes).length) delete _advEdits[districtId];
+  advRun();
+}
+
+/**
+ * Valores de la hoja, sin ninguna edición aplicada. Se recalculan aparte para
+ * poder comparar y para restaurar valores sueltos.
+ */
+let _advPristine = null;
+
+function advComputePristine() {
+  if (!_advParties) { _advPristine = null; return; }
+  try {
+    _advPristine = advCalculate({ ..._advParties, rows: advSelectedRows() }, _advConfig, null);
+  } catch (e) {
+    _advPristine = null;
+  }
+}
+
+function advOriginalSeats(districtId) {
+  const d = _advPristine?.districts.find(x => x.id === districtId);
+  return d ? d.seats : null;
+}
+
+function advOriginalVotes(districtId, partyKey) {
+  const d = _advPristine?.districts.find(x => x.id === districtId);
+  if (!d) return null;
+  return d.partyVotes.get(partyKey) || 0;
+}
+
+function advToggleEditMode() {
+  _advEditMode = !_advEditMode;
+  advRefreshEditBar();
+  advRenderResults();
+}
+
+function advResetEdits() {
+  if (!advCountEdits()) return;
+  if (!confirm('¿Descartar todos los cambios y volver a los datos de la hoja?')) return;
+  _advEdits = {};
+  advRun();
+}
+
+function advInitEditBar() {
+  select('#adv-edit-toggle')?.addEventListener('click', advToggleEditMode);
+  select('#adv-edit-reset')?.addEventListener('click', advResetEdits);
+  advRefreshEditBar();
+}
+
 /* ── Interacción ───────────────────────────────────────────── */
 
 function advAttachResultHandlers() {
+  // Los campos editables recalculan al confirmar, no en cada tecla: al
+  // recalcular se vuelve a dibujar la tabla y se perdería el foco.
+  selectAll('#adv-results .adv-edit-votes').forEach(inp => {
+    inp.addEventListener('change', () =>
+      advSetEdit(inp.dataset.district, 'votes', inp.dataset.party, inp.value));
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); });
+  });
+
+  selectAll('#adv-results .adv-edit-seats').forEach(inp => {
+    inp.addEventListener('change', () =>
+      advSetEdit(inp.dataset.district, 'seats', null, inp.value));
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); });
+  });
+
   selectAll('#adv-results .adv-ccaa-header').forEach(btn => {
     btn.addEventListener('click', () => {
       const ccaa = btn.dataset.ccaa;
@@ -675,6 +817,7 @@ function advInit() {
   advBuildElectionOptions();
   advBuildFormulaOptions();
   advInitSections();
+  advInitEditBar();
 
   ['#adv-year', '#adv-level', '#adv-formula', '#adv-b1-on', '#adv-b1-level', '#adv-b1-val',
    '#adv-b2-on', '#adv-b2-level', '#adv-b2-val', '#adv-blanco',

@@ -21,6 +21,17 @@ registerTab('advanced', 'tab-content', String.raw`
           </div>
         </div>
 
+        <div class="adv-editbar" id="adv-editbar">
+          <button type="button" class="adv-edit-btn" id="adv-edit-toggle">
+            <span class="adv-edit-icon">✎</span> Editar datos
+          </button>
+          <span class="adv-edit-note" id="adv-edit-note">
+            Modifica votos y escaños de cada circunscripción. Los cambios son sólo de esta sesión: no tocan la hoja de datos.
+          </span>
+          <span class="adv-edit-badge" id="adv-edit-badge" hidden>0 cambios</span>
+          <button type="button" class="adv-mini-btn" id="adv-edit-reset" hidden>Restaurar originales</button>
+        </div>
+
         <div id="adv-status"></div>
         <div id="adv-summary"></div>
         <div id="adv-results"></div>
@@ -28,8 +39,8 @@ registerTab('advanced', 'tab-content', String.raw`
       </main>
 
       <!-- ══ COLUMNA DERECHA: configuración ══ -->
-      <!-- Cada sección se pliega en un resumen de una línea y sólo admite
-           cambios tras pulsar «Editar», para que el panel no se alargue. -->
+      <!-- Cada sección se pliega en un resumen de una línea para que el
+           panel no se alargue ni se corte. -->
       <aside class="adv-config">
         <div class="param-card">
           <div class="param-card-header">
@@ -44,7 +55,6 @@ registerTab('advanced', 'tab-content', String.raw`
                   <span class="adv-cfg-titleline"><span class="adv-cfg-caret">▸</span><span class="adv-cfg-name">Elección</span></span>
                   <span class="adv-cfg-summary" id="adv-sum-eleccion">—</span>
                 </button>
-                <button type="button" class="adv-cfg-edit">Editar</button>
               </header>
               <div class="adv-cfg-content">
                 <div class="adv-field">
@@ -66,7 +76,6 @@ registerTab('advanced', 'tab-content', String.raw`
                   <span class="adv-cfg-titleline"><span class="adv-cfg-caret">▸</span><span class="adv-cfg-name">Circunscripción y fórmula</span></span>
                   <span class="adv-cfg-summary" id="adv-sum-reparto">—</span>
                 </button>
-                <button type="button" class="adv-cfg-edit">Editar</button>
               </header>
               <div class="adv-cfg-content">
                 <div class="adv-field">
@@ -93,7 +102,6 @@ registerTab('advanced', 'tab-content', String.raw`
                   <span class="adv-cfg-titleline"><span class="adv-cfg-caret">▸</span><span class="adv-cfg-name">Barreras electorales</span></span>
                   <span class="adv-cfg-summary" id="adv-sum-barreras">—</span>
                 </button>
-                <button type="button" class="adv-cfg-edit">Editar</button>
               </header>
               <div class="adv-cfg-content">
                 <div class="adv-fieldset" id="adv-b1-fs">
@@ -136,7 +144,6 @@ registerTab('advanced', 'tab-content', String.raw`
                   <span class="adv-cfg-titleline"><span class="adv-cfg-caret">▸</span><span class="adv-cfg-name">Escaños</span></span>
                   <span class="adv-cfg-summary" id="adv-sum-escanos">—</span>
                 </button>
-                <button type="button" class="adv-cfg-edit">Editar</button>
               </header>
               <div class="adv-cfg-content">
                 <div class="adv-field">
