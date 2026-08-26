@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="css/layout.css">
   <link rel="stylesheet" href="css/components.css">
   <link rel="stylesheet" href="css/otros-drag-responsive.css">
+  <link rel="stylesheet" href="css/advanced.css">
 </head>
 <body>
 
@@ -303,11 +304,133 @@
        TAB: CALCULADORA AVANZADA
   ══════════════════════════════════════════════════════ -->
   <div id="advanced-tab" class="tab-content">
-    <div style="padding:40px;max-width:1200px;margin:0 auto">
-      <h2 style="font-family:'Libre Baskerville',serif;color:var(--text);margin-bottom:20px;font-size:1.8rem">Calculadora Avanzada</h2>
-      <div style="padding:60px 20px;text-align:center;background:var(--accent-bg);border:1px solid var(--border);border-radius:var(--radius)">
-        <p style="color:var(--text-muted);font-size:1.1rem">Próximamente: funcionalidades avanzadas de simulación electoral</p>
-      </div>
+    <div class="adv-workspace">
+
+      <!-- ══ COLUMNA IZQUIERDA: resultados ══ -->
+      <main class="adv-main">
+
+        <div class="adv-head">
+          <div>
+            <h2 class="adv-title">Calculadora Avanzada</h2>
+            <div class="adv-subtitle" id="adv-subtitle">Cargando datos electorales…</div>
+          </div>
+        </div>
+
+        <div id="adv-status"></div>
+        <div id="adv-summary"></div>
+        <div id="adv-results"></div>
+
+      </main>
+
+      <!-- ══ COLUMNA DERECHA: configuración ══ -->
+      <aside class="adv-config">
+        <div class="param-card">
+          <div class="param-card-header">Configuración</div>
+          <div class="param-body">
+
+            <div class="adv-field">
+              <label for="adv-election">Elección</label>
+              <div class="adv-select-wrap"><select id="adv-election"></select></div>
+              <small>Cada hoja del documento es una elección.</small>
+            </div>
+
+            <div class="adv-divider"></div>
+
+            <div class="adv-field">
+              <label for="adv-level">Circunscripción</label>
+              <div class="adv-select-wrap">
+                <select id="adv-level">
+                  <option value="provincia">Provincial</option>
+                  <option value="ccaa">Autonómica (CCAA)</option>
+                  <option value="nacional">Estatal (única)</option>
+                </select>
+              </div>
+              <small>Agrupa los votos de las provincias en el nivel elegido.</small>
+            </div>
+
+            <div class="adv-field">
+              <label for="adv-formula">Fórmula de reparto</label>
+              <div class="adv-select-wrap"><select id="adv-formula"></select></div>
+            </div>
+
+            <div class="adv-divider"></div>
+
+            <div class="adv-fieldset" id="adv-b1-fs">
+              <label class="adv-check"><input type="checkbox" id="adv-b1-on"> Barrera electoral</label>
+              <div class="adv-row">
+                <div class="adv-select-wrap">
+                  <select id="adv-b1-level">
+                    <option value="circunscripcion">Circunscripción</option>
+                    <option value="ccaa">Comunidad</option>
+                    <option value="nacional">Nacional</option>
+                  </select>
+                </div>
+                <input type="number" id="adv-b1-val" min="0" max="100" step="0.1" value="3">
+              </div>
+              <small id="adv-b1-hint" style="display:none"></small>
+            </div>
+
+            <div class="adv-fieldset" id="adv-b2-fs">
+              <label class="adv-check"><input type="checkbox" id="adv-b2-on"> Segunda barrera</label>
+              <div class="adv-row">
+                <div class="adv-select-wrap">
+                  <select id="adv-b2-level">
+                    <option value="circunscripcion">Circunscripción</option>
+                    <option value="ccaa">Comunidad</option>
+                    <option value="nacional">Nacional</option>
+                  </select>
+                </div>
+                <input type="number" id="adv-b2-val" min="0" max="100" step="0.1" value="3">
+              </div>
+              <small id="adv-b2-hint" style="display:none"></small>
+            </div>
+
+            <label class="adv-check"><input type="checkbox" id="adv-blanco" checked> Contar votos en blanco en la barrera</label>
+
+            <div class="adv-divider"></div>
+
+            <div class="adv-field">
+              <label for="adv-seats-mode">Escaños</label>
+              <div class="adv-select-wrap">
+                <select id="adv-seats-mode">
+                  <option value="sheet">Los de la hoja de datos</option>
+                  <option value="custom">Total personalizado</option>
+                </select>
+              </div>
+            </div>
+
+            <div id="adv-custom-seats" class="adv-custom-seats" style="display:none">
+              <div class="adv-field">
+                <label for="adv-total-seats">Total de escaños</label>
+                <input type="number" id="adv-total-seats" min="1" max="2000" value="350">
+              </div>
+              <div class="adv-field">
+                <label for="adv-min-seats">Mínimo por circunscripción</label>
+                <input type="number" id="adv-min-seats" min="0" max="20" value="2">
+              </div>
+              <div class="adv-field">
+                <label for="adv-reparto-base">Repartir el resto según</label>
+                <div class="adv-select-wrap">
+                  <select id="adv-reparto-base">
+                    <option value="poblacion">Población</option>
+                    <option value="censo">Censo electoral</option>
+                  </select>
+                </div>
+                <small>Mínimo fijo por circunscripción y resto por cuota Hare, como la LOREG.</small>
+              </div>
+            </div>
+
+            <div class="adv-divider"></div>
+
+            <div class="adv-row">
+              <button class="adv-mini-btn" id="adv-reset" style="border-color:var(--border);color:var(--text-muted);padding:6px 8px">Valores de la hoja</button>
+              <button class="adv-mini-btn" id="adv-reload" style="border-color:var(--border);color:var(--text-muted);padding:6px 8px">Recargar datos</button>
+            </div>
+
+          </div>
+        </div>
+      </aside>
+
     </div>
   </div><!-- /advanced-tab -->
 
@@ -604,6 +727,9 @@
 <script src="js/calculator.js"></script>
 <script src="js/hemicycle.js"></script>
 <script src="js/pactometer.js"></script>
+<script src="js/advanced-data.js"></script>
+<script src="js/advanced-calc.js"></script>
+<script src="js/advanced-ui.js"></script>
 <script src="js/ui.js"></script>
 
 </body>

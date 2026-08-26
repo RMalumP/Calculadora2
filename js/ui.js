@@ -70,6 +70,7 @@ function switchTab(tabName) {
   if (!tabId) return;
   select(`#${tabId}`)?.classList.add('active');
   select(`.tab[data-tab="${tabName}"]`)?.classList.add('active');
+  if (tabName === 'advanced' && typeof advEnsureLoaded === 'function') advEnsureLoaded();
 }
 
 /* ── FÓRMULA ─────────────────────────────────────────────── */
