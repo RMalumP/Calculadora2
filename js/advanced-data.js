@@ -30,12 +30,40 @@ console.log('[Calculadora avanzada] advanced-data.js versión', ADV_PARSER_VERSI
 
 /**
  * Registro de hojas (elecciones) disponibles.
- * Para añadir una nueva hoja en el futuro: abre su pestaña en Google Sheets,
- * copia el número "gid=" de la URL y añade una entrada aquí.
+ *
+ * «candidatas» son las señas con que se va a buscar la pestaña de resultados,
+ * en orden, hasta que una devuelva filas de datos. Se prueban varias porque el
+ * documento tiene más de una pestaña y la de resultados no es la primera: la
+ * primera es el libro de códigos, que se lee sin error pero no tiene ni
+ * candidaturas ni circunscripciones. Sin gid explícito Google sirve la primera,
+ * así que pedirla a ciegas devuelve el libro de códigos.
+ *
+ * Para fijar una pestaña sin tanteo: ábrela en Google Sheets, copia el número
+ * que sale en la URL detrás de «gid=» y déjalo como única candidata.
  */
 const ADV_ELECTIONS = [
-  { key: 'default', label: 'Generales · Congreso', gid: null }
+  {
+    key: 'default',
+    label: 'Generales · Congreso',
+    candidatas: [
+      { gid: 0 },                       // la pestaña original del documento
+      { sheet: 'Generales. España.' },  // por nombre, tal como se exporta
+      { sheet: 'Generales. España' },
+      { sheet: 'Generales España' },
+      { sheet: 'Generales' },
+      {}                                // la primera, como último recurso
+    ]
+  }
 ];
+
+/**
+ * ¿La hoja leída sirve como elección? El libro de códigos y cualquier otra
+ * pestaña auxiliar se leen sin dar error, así que la comprobación es que haya
+ * salido algo con lo que calcular.
+ */
+function advTablaUtil(data) {
+  return !!(data && data.rows.length && data.parties.length);
+}
 
 /**
  * Cabecera → campo. La clave es el texto normalizado (sin tildes, sin
@@ -215,13 +243,17 @@ let ADV_FETCH_TIMEOUT_MS = 20000;
  * que envuelva la respuesta en google.visualization.Query.setResponse()— y
  * funciona igual con file:// que servido desde un dominio.
  */
-function advFetchTable(gid, opts = {}) {
+function advFetchTable(target, opts = {}) {
   const { headers = 1, timeoutMs = ADV_FETCH_TIMEOUT_MS } = opts;
+  // Admite el gid suelto de siempre o unas señas { gid } / { sheet }.
+  const seNas = (target && typeof target === 'object') ? target
+              : (target != null ? { gid: target } : {});
   return new Promise((resolve, reject) => {
     const cb = `_advGvizCb${Date.now()}_${_advJsonpSeq++}`;
     const url = `https://docs.google.com/spreadsheets/d/${ADV_SHEET_ID}/gviz/tq` +
                 `?tqx=out:json;responseHandler:${cb}` +
-                (gid != null ? `&gid=${encodeURIComponent(gid)}` : '') +
+                (seNas.gid != null ? `&gid=${encodeURIComponent(seNas.gid)}` : '') +
+                (seNas.sheet ? `&sheet=${encodeURIComponent(seNas.sheet)}` : '') +
                 `&headers=${encodeURIComponent(headers)}`;
 
     const script = document.createElement('script');
@@ -498,12 +530,55 @@ function advParseTable(table) {
 
 /* ── API pública con caché en memoria ──────────────────────── */
 
+/** Describe unas señas de pestaña para los avisos y el diagnóstico. */
+function _advSenasLabel(s) {
+  if (s?.gid != null) return `gid ${s.gid}`;
+  if (s?.sheet) return `pestaña «${s.sheet}»`;
+  return 'la primera pestaña';
+}
+
+/**
+ * Busca la pestaña de resultados entre las candidatas y devuelve la primera
+ * que traiga datos. Las que no existen dan error de Google y las auxiliares
+ * —el libro de códigos— se leen bien pero salen vacías: ambas se descartan y
+ * se sigue con la siguiente, en vez de dar por buena una hoja sin elección.
+ */
 async function advGetElectionData(electionKey) {
   if (_advCache[electionKey]) return _advCache[electionKey];
   const cfg = ADV_ELECTIONS.find(e => e.key === electionKey) || ADV_ELECTIONS[0];
-  const data = advParseTable(await advFetchTable(cfg.gid));
-  _advCache[electionKey] = data;
-  return data;
+  const candidatas = cfg.candidatas?.length ? cfg.candidatas : [{ gid: cfg.gid ?? null }];
+
+  const intentos = [];
+  let ultimoError = null;
+  let primeraLeida = null;
+
+  for (const senas of candidatas) {
+    const label = _advSenasLabel(senas);
+    let data;
+    try {
+      data = advParseTable(await advFetchTable(senas));
+    } catch (err) {
+      intentos.push(`${label}: ${err.message}`);
+      ultimoError = err;
+      continue;
+    }
+    if (advTablaUtil(data)) {
+      data.debug.hojaUsada = label;
+      data.debug.intentos = intentos;
+      _advCache[electionKey] = data;
+      return data;
+    }
+    intentos.push(`${label}: se lee, pero no tiene filas de elección ` +
+      `(${data.rows.length} filas, ${data.parties.length} candidaturas)`);
+    // Se guarda la primera que sí se haya leído para poder diagnosticarla.
+    if (!primeraLeida) { primeraLeida = data; primeraLeida.debug.hojaUsada = label; }
+  }
+
+  if (primeraLeida) {
+    primeraLeida.debug.intentos = intentos;
+    return primeraLeida;
+  }
+  throw ultimoError || new Error('No se ha podido leer ninguna pestaña del documento.');
 }
 
 function advClearCache() {

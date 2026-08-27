@@ -139,43 +139,62 @@ async function advLoadElection(force) {
 }
 
 /**
- * Diagnóstico para cuando la hoja se lee pero no se detecta ninguna fila de
- * datos: probablemente el parser no ha reconocido alguna columna clave.
- * Muestra lo que sí ha detectado para poder corregirlo sin volver a
- * adivinar a ciegas la estructura de la hoja.
+ * Diagnóstico para cuando se lee una pestaña pero no sale ninguna elección.
+ * Distingue las dos causas: haber acabado en la pestaña equivocada —el
+ * documento tiene más de una y la de resultados no es la primera— o que sea
+ * la buena pero con alguna columna clave sin reconocer.
  */
 function advNoRowsDiagnostic(debug) {
   const cols = debug?.metaCols || {};
-  const need = { provName: 'Nombre de provincia', ccaaName: 'Nombre de comunidad', seatsBase: 'Nº diputados/circunscripción' };
-  const rowsOk = [], rowsMissing = [];
-  Object.entries(need).forEach(([k, label]) => (cols[k] !== undefined ? rowsOk : rowsMissing).push(label));
+  const need = {
+    provName:  'Nombre de provincia',
+    ccaaName:  'Nombre de comunidad',
+    seatsBase: 'Numero diputados por provincia'
+  };
+  const faltan = Object.entries(need).filter(([k]) => cols[k] === undefined).map(([, l]) => l);
+  const sinCandidaturas = !debug?.numParties;
+  const otraPestana = sinCandidaturas && faltan.length === Object.keys(need).length;
 
-  const scanTable = (debug?.rowScan || []).map(s =>
-    `fila gviz #${s.row} (×"votos"=${s.votosCount}): ${s.preview.map(advEscape).join(' | ')}`
-  ).join('\n');
+  const sheetUrl = `https://docs.google.com/spreadsheets/d/${ADV_SHEET_ID}/edit`;
 
   return `<div class="adv-notice error">
-    <strong>La hoja se ha leído, pero no se ha detectado ninguna fila de datos.</strong><br>
-    ${debug && !debug.headerRowFound
-      ? 'No se ha encontrado ninguna fila con celdas de texto "Votos", así que no se ha podido localizar la cabecera de la tabla de partidos.'
-      : rowsMissing.length
-      ? `No se ha reconocido la columna de cabecera para: <strong>${rowsMissing.map(advEscape).join(', ')}</strong>.
-         Revisa el texto de esas columnas en la fila de cabecera detectada más abajo.`
-      : 'Todas las columnas clave se han reconocido, pero ninguna fila después de la cabecera tiene texto en la columna de provincia.'}
+    <strong>${otraPestana
+      ? 'Se ha leído una pestaña que no es la de resultados.'
+      : 'La pestaña se ha leído, pero no se ha detectado ninguna elección.'}</strong><br>
+    ${otraPestana
+      ? `Lo leído no tiene ni columnas de candidaturas ni de circunscripción: tiene toda la pinta
+         del libro de códigos o de otra pestaña auxiliar. La de resultados debe ser pública y
+         hay que poder encontrarla por su gid o por su nombre.`
+      : sinCandidaturas
+      ? `No se ha encontrado ninguna columna «Votos» que abra el trío de cada candidatura
+         («Votos», «Partido», «Siglas partido»).`
+      : faltan.length
+      ? `No se ha reconocido la columna: <strong>${faltan.map(advEscape).join(', ')}</strong>.
+         Revisa su texto en la cabecera; se comparan sin tildes, sin mayúsculas y sin el número
+         de apartado de delante.`
+      : `Las columnas clave están, pero ninguna fila tiene a la vez año de elección y nombre de
+         provincia.`}
+  </div>
+  <div class="adv-notice info">
+    Para fijar la pestaña sin tanteo: ábrela en
+    <a href="${sheetUrl}" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600">la hoja de cálculo</a>,
+    copia el número que sale en la URL detrás de <code>gid=</code> y pásamelo, o dime el nombre
+    exacto de la pestaña.
   </div>
   <details class="adv-notice info" style="cursor:pointer" open>
     <summary style="cursor:pointer;font-weight:700">Ver diagnóstico técnico</summary>
     <div style="margin-top:8px;font-family:monospace;font-size:0.72rem;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6">Versión del parser: ${ADV_PARSER_VERSION}
-Filas totales recibidas de Google Sheets: ${debug?.totalRowsFromSheet ?? '?'}
-Cabecera encontrada por contenido ("Votos"): ${debug?.headerRowFound ? 'sí' : 'no (se usó la fila de reserva 5)'}
-Fila de cabecera usada: índice gviz ${debug?.headerRowIndex ?? '?'}
+Pestaña usada: ${advEscape(debug?.hojaUsada || '(sin determinar)')}
+Pestañas probadas:
+${(debug?.intentos || []).map(t => '  · ' + advEscape(t)).join('\n') || '  (ninguna)'}
 
-Primeras filas devueltas por Google Sheets (índice gviz, no el número de fila que ves en Sheets):
-${scanTable || '(sin datos)'}
+Filas recibidas de Google Sheets: ${debug?.totalRowsFromSheet ?? '?'}
+Columnas: ${debug?.numCols ?? '?'}
+Candidaturas detectadas: ${debug?.numParties ?? 0}
+Filas de datos exploradas: ${debug?.numDataRowsScanned ?? '?'}
 
-Columnas leídas en la fila de cabecera: ${(debug?.headerRowTexts || []).map(advEscape).join(' | ') || '(ninguna)'}
-Columnas identificadas: ${JSON.stringify(cols)}
-Filas de datos exploradas tras la cabecera: ${debug?.numDataRowsScanned ?? '?'}</div>
+Columnas leídas en la cabecera: ${(debug?.headerRowTexts || []).map(advEscape).join(' | ') || '(ninguna)'}
+Columnas identificadas: ${advEscape(JSON.stringify(cols))}</div>
   </details>`;
 }
 
