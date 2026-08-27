@@ -4,11 +4,26 @@
  * circunscripciones, reparto de escaños entre ellas, barreras y asignación.
  */
 
+/**
+ * Fórmulas que la hoja puede declarar pero la calculadora avanzada todavía no
+ * sabe repartir, y con qué se sustituyen mientras tanto. La segunda vuelta
+ * necesita repartir con los votos de la segunda, que la hoja trae en columnas
+ * propias; hasta que eso esté, se reparte con la primera y se avisa.
+ */
+const ADV_FORMULA_SUSTITUTA = { majority_round2: 'majority' };
+
+/** Fórmula que se va a usar de verdad para una declarada en la hoja. */
+function advFormulaSoportada(id) {
+  return ADV_FORMULA_SUSTITUTA[id] || id;
+}
+
 /** Configuración por defecto (se completa con los metadatos de la hoja). */
 function advDefaultConfig(meta) {
   return {
     circunscripcion: meta?.circunscripcionDefault || 'provincia',
-    formula: 'dhondt',
+    // La hoja trae la fórmula del sistema real; d'Hondt sólo es el recurso
+    // para las elecciones que aún no la tengan anotada.
+    formula: advFormulaSoportada(meta?.formulaDefault) || 'dhondt',
     barrera1: {
       activa: (meta?.barrera1?.valor || 0) > 0,
       nivel:  meta?.barrera1?.nivel || 'circunscripcion',
@@ -22,7 +37,7 @@ function advDefaultConfig(meta) {
     blancoEnDenominador: true,
     seatsMode: 'sheet',      // 'sheet' | 'custom'
     totalSeats: 350,
-    minPorCircunscripcion: 2,
+    minPorCircunscripcion: meta?.minimoDefault != null ? meta.minimoDefault : 2,
     repartoBase: 'poblacion' // 'poblacion' | 'censo'
   };
 }
@@ -32,11 +47,19 @@ function advDefaultConfig(meta) {
 function advBuildDistricts(data, config) {
   const level = config.circunscripcion;
 
+  // La hoja da un mínimo garantizado por circunscripción de origen, que no
+  // tiene por qué ser el mismo en todas (2 por provincia y 1 para Ceuta y
+  // Melilla). Se guarda como diferencia respecto al mínimo corriente de la
+  // elección, para que al cambiarlo a mano en el panel esas excepciones
+  // conserven su distancia en vez de igualarse con el resto.
+  const minimoBase = data.meta?.minimoDefault;
+
   const makeDistrict = (id, name, ccaaName, ccaaCode) => ({
     id, name, ccaaName, ccaaCode,
     seatsBase: 0, seats: 0,
     poblacion: 0, censoTotal: 0, votantesTotal: 0,
     votosValidos: 0, votosBlanco: 0, votosNulos: 0,
+    numRows: 0, minAjuste: 0,
     partyVotes: new Map(), realSeats: new Map(),
     members: []
   });
@@ -49,6 +72,8 @@ function advBuildDistricts(data, config) {
     d.votosValidos  += row.votosValidos;
     d.votosBlanco   += row.votosBlanco;
     d.votosNulos    += row.votosNulos;
+    d.numRows       += 1;
+    if (minimoBase != null && row.minimo != null) d.minAjuste += row.minimo - minimoBase;
     d.members.push(row.provName);
     row.parties.forEach(p => {
       if (p.votes)     d.partyVotes.set(p.key, (d.partyVotes.get(p.key) || 0) + p.votes);
@@ -177,6 +202,13 @@ function advApportionSeats(districts, config, lockedSeats) {
   const total = Math.max(0, parseInt(config.totalSeats) || 0);
   const min   = Math.max(0, parseInt(config.minPorCircunscripcion) || 0);
 
+  /**
+   * Mínimo de una circunscripción: el del panel por cada circunscripción de
+   * origen que la componga, corregido con las excepciones que traiga la hoja.
+   * Así el total garantizado no cambia al agrupar por comunidad o país.
+   */
+  const minOf = d => Math.max(0, min * (d.numRows || 1) + (d.minAjuste || 0));
+
   // Los bloqueados se sirven primero y salen del reparto.
   const locked = districts.filter(isLocked);
   const free   = districts.filter(d => !isLocked(d));
@@ -197,23 +229,25 @@ function advApportionSeats(districts, config, lockedSeats) {
   }
   if (!n) return { total: lockedTotal, warning: null };
 
-  if (min * n > toShare) {
+  const minSum = free.reduce((s, d) => s + minOf(d), 0);
+
+  if (minSum > toShare) {
     const base = Math.floor(toShare / n);
     free.forEach(d => { d.seats = base; });
     let rest = toShare - base * n;
     for (let i = 0; i < rest; i++) free[i].seats++;
     return {
       total,
-      warning: `El mínimo de ${min} por circunscripción exige ${min * n} escaños` +
+      warning: `El mínimo de ${min} por circunscripción exige ${minSum} escaños` +
                `${lockedTotal ? ` para las no bloqueadas` : ''}, más que los ${toShare} disponibles. Se ha repartido a partes iguales.`
     };
   }
 
-  const remaining = toShare - min * n;
+  const remaining = toShare - minSum;
   const basis = free.map(d => (config.repartoBase === 'censo' ? d.censoTotal : d.poblacion) || 0);
   const basisSum = basis.reduce((a, b) => a + b, 0);
 
-  free.forEach(d => { d.seats = min; });
+  free.forEach(d => { d.seats = minOf(d); });
 
   if (remaining > 0 && basisSum > 0) {
     // Resto mayor (cuota Hare) sobre población/censo, como la LOREG.
@@ -400,6 +434,13 @@ function advCalculate(data, config, edits, locks) {
   // ── Avisos sobre la calidad de los datos de origen ──
   const warnings = [];
   if (apport.warning) warnings.push(apport.warning);
+  if (ADV_FORMULA_SUSTITUTA[data.meta?.formulaDefault]) {
+    warnings.push(
+      'La hoja declara un sistema mayoritario a dos vueltas. La calculadora avanzada ' +
+      'todavía reparte sólo con los votos de la primera: los de la segunda se leen y se ' +
+      'muestran en «Ver metadatos», pero no entran en el reparto.'
+    );
+  }
   if (config.seatsMode === 'sheet') {
     const realTotal = data.rows.reduce((s, r) => s + r.parties.reduce((a, p) => a + p.realSeats, 0), 0);
     const baseTotal = data.rows.reduce((s, r) => s + r.seatsBase, 0);

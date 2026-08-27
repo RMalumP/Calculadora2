@@ -1382,10 +1382,18 @@ function advRenderMetaDialog() {
   const censo = rows.reduce((a, r) => a + r.censoTotal, 0);
   const votantes = rows.reduce((a, r) => a + r.votantesTotal, 0);
 
+  const formulaNombre = FORMULAS.find(f => f.id === m.formulaDefault)?.name || '';
+  const conCodigo = (label, code) => label
+    ? `${advEscape(label)}${code != null ? ` <small style="opacity:.6">(código ${code})</small>` : ''}`
+    : (code != null ? `Código ${code}` : '');
+
+  const r2 = m.segundaVuelta;
+
   body.innerHTML = `
     <section>
       <h4>Elección</h4>
       ${dl([
+        ['Identificador', advEscape(m.idEleccion || '—')],
         ['Tipo', advEscape(m.tipo || '—')],
         ['Subtipo', advEscape(m.subtipo || '—')],
         ['País', advEscape(m.pais || '—')],
@@ -1393,12 +1401,26 @@ function advRenderMetaDialog() {
       ])}
     </section>
     <section>
-      <h4>Reglas declaradas en la hoja</h4>
+      <h4>Sistema electoral declarado en la hoja</h4>
       ${dl([
         ['Circunscripción base', advEscape(m.circunscripcionDefault || '—')],
+        ['Magnitud', conCodigo(m.magnitudLabel, m.magnitud) || '—'],
+        ['Prorrateo', conCodigo(m.prorrateoLabel, m.prorrateo) || '—'],
+        ['Mínimo por circunscripción', m.minimoDefault != null ? m.minimoDefault : '—'],
+        ['Forma de voto', advEscape(m.formaVoto || '—')],
+        ['Fórmula electoral', conCodigo(formulaNombre, m.formulaCode) || '—'],
         ['Barrera electoral', m.barrera1?.valor ? `${m.barrera1.valor}% ${advEscape(nivel[m.barrera1.nivel] || m.barrera1.nivel)}` : 'Sin barrera'],
         ['Segunda barrera', m.barrera2 ? `${m.barrera2.valor}% ${advEscape(nivel[m.barrera2.nivel] || m.barrera2.nivel)}` : 'No'],
       ])}
+    </section>
+    <section>
+      <h4>Segunda vuelta</h4>
+      ${r2
+        ? dl([
+            ['Fecha', advEscape([r2.dia, advMesLabel(r2.mes), r2.anio].filter(Boolean).join(' de '))],
+            ['Candidaturas', r2.candidaturas.map(c => advEscape(c.siglas ? `${c.siglas} · ${c.name}` : c.name)).join('<br>') || '—'],
+          ]) + `<div class="adv-notice info" style="margin-top:8px">Sus candidaturas se leen aparte y no entran en el reparto de la primera vuelta.</div>`
+        : `<div class="adv-notice info">Esta elección no tiene segunda vuelta en la hoja.</div>`}
     </section>
     <section>
       <h4>Datos cargados</h4>
@@ -1418,6 +1440,9 @@ function advRenderMetaDialog() {
         ['Columnas', dbg.numCols ?? '—'],
         ['Cabecera desde etiquetas', dbg.headerFromLabels ? 'sí' : 'no'],
         ['Primeras candidaturas', (dbg.partySample || []).map(advEscape).join('<br>') || '—'],
+        ['Columnas de segunda vuelta', dbg.numRound2Parties
+          ? `${dbg.numRound2Parties} candidatura${dbg.numRound2Parties === 1 ? '' : 's'}, leídas aparte`
+          : 'ninguna'],
       ])}
       <details class="adv-meta-details">
         <summary>Columnas reconocidas</summary>
