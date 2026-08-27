@@ -88,6 +88,18 @@ registerTab('advanced', 'tab-content', String.raw`
                   <label for="adv-formula">Fórmula de reparto</label>
                   <div class="adv-select-wrap"><select id="adv-formula"></select></div>
                 </div>
+
+                <!-- Niveles superpuestos a la circunscripción base. Los
+                     escaños de cada uno se ponen en la sección «Escaños». -->
+                <div class="adv-fieldset" id="adv-extra-fs">
+                  <label class="adv-check" id="adv-extra-ccaa-row">
+                    <input type="checkbox" id="adv-extra-ccaa"> Añadir circunscripción autonómica
+                  </label>
+                  <label class="adv-check" id="adv-extra-nacional-row">
+                    <input type="checkbox" id="adv-extra-nacional"> Añadir circunscripción estatal
+                  </label>
+                  <small id="adv-extra-hint"></small>
+                </div>
                 <div class="adv-exc" data-exc-section="reparto">
                   <button type="button" class="adv-exc-btn">
                     <span class="adv-exc-check" aria-hidden="true"></span>
@@ -184,6 +196,34 @@ registerTab('advanced', 'tab-content', String.raw`
                     <small>Mínimo fijo por circunscripción y resto por cuota Hare, como la LOREG.</small>
                   </div>
                 </div>
+
+                <!-- Escaños de las circunscripciones que se hayan añadido en
+                     «Circunscripción y fórmula». -->
+                <div class="adv-field" id="adv-extra-ccaa-seats-field" style="display:none">
+                  <label for="adv-extra-ccaa-seats">Escaños de la circunscripción autonómica</label>
+                  <input type="number" id="adv-extra-ccaa-seats" min="0" max="2000" value="0">
+                  <small>Se reparten entre las comunidades por población o censo y se suman a los de la base.</small>
+                </div>
+                <div class="adv-field" id="adv-extra-nacional-seats-field" style="display:none">
+                  <label for="adv-extra-nacional-seats">Escaños de la circunscripción estatal</label>
+                  <input type="number" id="adv-extra-nacional-seats" min="0" max="2000" value="0">
+                  <small>Se reparten en una única circunscripción de todo el país y se suman a los de la base.</small>
+                </div>
+
+                <div class="adv-fieldset" id="adv-bono-fs">
+                  <label class="adv-check"><input type="checkbox" id="adv-bono-on"> Bono de mayoría</label>
+                  <div class="adv-row">
+                    <div class="adv-select-wrap">
+                      <select id="adv-bono-modo">
+                        <option value="incluido">Incluido</option>
+                        <option value="extra">Extra</option>
+                      </select>
+                    </div>
+                    <input type="number" id="adv-bono-seats" min="0" max="500" value="0">
+                  </div>
+                  <small id="adv-bono-hint" style="display:none"></small>
+                </div>
+
                 <div class="adv-exc" data-exc-section="escanos">
                   <button type="button" class="adv-exc-btn">
                     <span class="adv-exc-check" aria-hidden="true"></span>

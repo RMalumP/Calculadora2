@@ -348,6 +348,18 @@ function advSyncConfigToForm() {
   select('#adv-reparto-base').value = c.repartoBase;
   select('#adv-blanco').checked = c.blancoEnDenominador;
 
+  select('#adv-bono-on').checked  = !!c.bono?.activa;
+  select('#adv-bono-modo').value  = c.bono?.modo || 'incluido';
+  select('#adv-bono-seats').value = c.bono?.escanos ?? 0;
+
+  Object.keys(ADV_EXTRA_LABEL).forEach(nivel => {
+    const e = c.extras?.[nivel] || {};
+    const on = select(`#adv-extra-${nivel}`);
+    const n  = select(`#adv-extra-${nivel}-seats`);
+    if (on) on.checked = !!e.activa;
+    if (n)  n.value = e.escanos ?? 0;
+  });
+
   advRefreshFormState();
 }
 
@@ -371,7 +383,16 @@ function advReadForm() {
     seatsMode:   select('#adv-seats-mode').value,
     totalSeats:  parseInt(select('#adv-total-seats').value) || 350,
     minPorCircunscripcion: parseInt(select('#adv-min-seats').value) || 0,
-    repartoBase: select('#adv-reparto-base').value
+    repartoBase: select('#adv-reparto-base').value,
+    bono: {
+      activa:  select('#adv-bono-on').checked,
+      modo:    select('#adv-bono-modo').value,
+      escanos: parseInt(select('#adv-bono-seats').value) || 0
+    },
+    extras: Object.fromEntries(Object.keys(ADV_EXTRA_LABEL).map(nivel => [nivel, {
+      activa:  !!select(`#adv-extra-${nivel}`)?.checked,
+      escanos: parseInt(select(`#adv-extra-${nivel}-seats`)?.value) || 0
+    }]))
   };
 }
 
@@ -416,9 +437,17 @@ function advUpdateSummaries() {
 
   const nLocks = advLockedIds().length;
   const lockTxt = nLocks ? ` · ${nLocks} fijada${nLocks === 1 ? '' : 's'}` : '';
+  const extras = advActiveExtras(c);
+  const extrasTxt = extras.length
+    ? ` · +${extras.map(e => `${e.escanos} ${ADV_EXTRA_LABEL[e.nivel]}`).join(' +')}`
+    : '';
+  const bonoTxt = c.bono?.activa && c.bono.escanos > 0
+    ? ` · bono ${c.bono.escanos} ${c.bono.modo}` : '';
+  // El total de la base, sin lo que añadan las circunscripciones extra: se
+  // enumeran justo después y sumarlas aquí las contaría dos veces.
   const seatsTxt = (c.seatsMode === 'custom'
     ? `${c.totalSeats} personalizados · mín. ${c.minPorCircunscripcion}`
-    : `${_advResult?.summary?.totalSeats ?? '—'} originales`) + lockTxt;
+    : `${_advResult?.summary?.baseSeats ?? '—'} originales`) + extrasTxt + bonoTxt + lockTxt;
   updateText(select('#adv-sum-escanos'), seatsTxt);
 }
 
@@ -453,6 +482,49 @@ function advRefreshFormState() {
     hint.textContent = msg;
     setDisplay(hint, !!msg);
   });
+
+  advRefreshExtraState(level);
+  advRefreshBonoState();
+}
+
+/**
+ * Sólo se ofrecen los niveles que están por encima de la circunscripción base,
+ * y la casilla de escaños de cada uno aparece cuando se enciende: así los dos
+ * desplegables no crecen con opciones que no vienen a cuento.
+ */
+function advRefreshExtraState(level) {
+  const disponibles = ADV_EXTRA_LEVELS[level] || [];
+
+  Object.keys(ADV_EXTRA_LABEL).forEach(nivel => {
+    const cabe = disponibles.includes(nivel);
+    const row = select(`#adv-extra-${nivel}-row`);
+    const on  = select(`#adv-extra-${nivel}`);
+    setDisplay(row, cabe);
+    if (on && !cabe) on.checked = false;
+    setDisplay(select(`#adv-extra-${nivel}-seats-field`), cabe && !!on?.checked);
+  });
+
+  setDisplay(select('#adv-extra-fs'), disponibles.length > 0);
+  updateText(select('#adv-extra-hint'), disponibles.length
+    ? 'Se superponen a la base: sus escaños se suman a los de cada circunscripción, no se descuentan.'
+    : '');
+}
+
+/** Aviso de lo que hace cada modo del bono, con el número puesto. */
+function advRefreshBonoState() {
+  const on = select('#adv-bono-on');
+  const fs = select('#adv-bono-fs');
+  if (!on || !fs) return;
+  fs.dataset.disabled = String(!on.checked);
+
+  const n = parseInt(select('#adv-bono-seats')?.value) || 0;
+  const modo = select('#adv-bono-modo')?.value || 'incluido';
+  const hint = select('#adv-bono-hint');
+  const msg = !on.checked || n <= 0 ? '' : modo === 'incluido'
+    ? `Cada circunscripción reparte ${n} menos y la candidatura más votada en ella se lleva esos ${n}. El total no cambia.`
+    : `La candidatura más votada en cada circunscripción se lleva ${n} por encima de su tamaño. El total sube.`;
+  updateText(hint, msg);
+  setDisplay(hint, !!msg);
 }
 
 function advOnConfigChange() {
@@ -503,8 +575,39 @@ function advRenderSummary() {
 }
 
 function advRenderResults() {
-  select('#adv-results').innerHTML = advNationalCard() + advDistrictsCard();
+  select('#adv-results').innerHTML = advNationalCard() + advExtrasCard() + advDistrictsCard();
   advAttachResultHandlers();
+}
+
+/**
+ * Las circunscripciones añadidas, en su propia tarjeta: no son parte del mapa
+ * de la base —se superponen a ella— y mezclarlas con las provincias haría
+ * pensar que sus escaños salen de ahí.
+ */
+function advExtrasCard() {
+  const extras = _advResult?.extras || [];
+  if (!extras.length) return '';
+
+  const bloques = extras.map(({ nivel, districts }) => {
+    const total = districts.reduce((s, d) => s + d.seats + (d.bonoSeats || 0), 0);
+    const seatWord = typeof currentSeatName === 'string' ? currentSeatName : 'escaños';
+    return `<div class="adv-extra-tier">
+      <div class="adv-extra-head">
+        <span class="adv-extra-name">Circunscripción ${advEscape(ADV_EXTRA_LABEL[nivel])}</span>
+        <span class="adv-extra-meta">${advNum(total)} ${advEscape(seatWord)}${
+          districts.length > 1 ? ` · ${districts.length} circunscripciones` : ''}</span>
+      </div>
+      ${districts.map(d => advDistrictHTML(d, districts.length === 1, false)).join('')}
+    </div>`;
+  }).join('');
+
+  return `<div class="card">
+    <div class="card-header"><span class="dot"></span>Circunscripciones añadidas</div>
+    <div class="adv-extra-note">Se reparten aparte y sus ${
+      advEscape(typeof currentSeatName === 'string' ? currentSeatName : 'escaños')
+    } se suman a los de la base.</div>
+    ${bloques}
+  </div>`;
 }
 
 /* ── Recuento final (nacional) ─────────────────────────────── */
@@ -602,7 +705,7 @@ function advDistrictsCard() {
   });
 
   const body = [...groups.entries()].map(([ccaa, ds]) => {
-    const seats = ds.reduce((s, d) => s + d.seats, 0);
+    const seats = ds.reduce((s, d) => s + d.seats + (d.bonoSeats || 0), 0);
     const votes = ds.reduce((s, d) => s + d.validVotes, 0);
     const open  = !_advCollapsed.has(ccaa);
 
@@ -677,8 +780,15 @@ function advDistrictsCard() {
 const ADV_VISIBLE_ROWS = 6;
 
 function advDistrictHTML(d, alwaysFull, hideHead) {
-  const locked = advAnyLock(d.id);
-  const lockedEdit = advLockHas(_advLocks, d.id, 'edicion');
+  // Las circunscripciones añadidas son un agregado de las de la base: ni se
+  // editan ni se bloquean, porque sus votos salen de ellas y sus escaños los
+  // fija la casilla del panel.
+  const esExtra = !!d.extra;
+  const locked = !esExtra && advAnyLock(d.id);
+  const lockedEdit = esExtra || advLockHas(_advLocks, d.id, 'edicion');
+  // Con el bono en modo «extra» la circunscripción acaba con más escaños que
+  // su tamaño, y es ese total el que hay que enseñar.
+  const seatsShown = d.seats + (d.bonoSeats || 0);
   const expanded = alwaysFull || _advExpandedDistricts.has(d.id);
   const rows = d.results;
   // Se muestran siempre las candidaturas con escaño y las bloqueadas por barrera
@@ -738,14 +848,16 @@ function advDistrictHTML(d, alwaysFull, hideHead) {
   // Con circunscripción autonómica la cabecera del grupo ya da nombre, votos
   // y escaños: repetirlos aquí sería ruido.
   const seatsEdited = edited.seats != null;
-  const seatsCell = (_advEditMode && !advLockHas(_advLocks, d.id, 'escanos'))
+  const seatsCell = (_advEditMode && !esExtra && !advLockHas(_advLocks, d.id, 'escanos'))
     ? `<label class="adv-edit-seats-wrap">
          <input type="number" class="adv-edit-seats${seatsEdited ? ' changed' : ''}" min="0" step="1"
                 value="${d.seats}" data-district="${advEscape(d.id)}"
                 aria-label="Escaños de ${advEscape(d.name)}">
          <span>${advEscape(seatWord)}</span>
        </label>`
-    : `<b>${d.seats}</b> ${advEscape(seatWord)}${showReal && realTotal !== d.seats ? ` · ${realTotal} reales` : ''}`;
+    : `<b>${seatsShown}</b> ${advEscape(seatWord)}` +
+      (d.bonoSeats ? ` <span class="adv-bono-tag" title="Bono de mayoría">+${d.bonoSeats} bono</span>` : '') +
+      (showReal && realTotal !== seatsShown ? ` · ${realTotal} reales` : '');
 
   const activeAspects = ADV_LOCK_ASPECTS.filter(a => advLockHas(_advLocks, d.id, a.key));
   const partial = locked && activeAspects.length < ADV_LOCK_ASPECTS.length;
@@ -753,7 +865,7 @@ function advDistrictHTML(d, alwaysFull, hideHead) {
     ? `Bloqueado: ${activeAspects.map(a => a.label.toLowerCase()).join(', ')}. ` +
       `Clic para quitar el candado; clic derecho o pulsación larga para elegir qué cubre.`
     : 'Bloquear esta circunscripción. Clic derecho o pulsación larga para elegir qué cubre.';
-  const lockBtn = `<button type="button" class="adv-lock${locked ? ' on' : ''}${partial ? ' partial' : ''}"
+  const lockBtn = esExtra ? '' : `<button type="button" class="adv-lock${locked ? ' on' : ''}${partial ? ' partial' : ''}"
       data-lock-district="${advEscape(d.id)}" title="${advEscape(lockTip)}"
       aria-pressed="${locked}">${locked ? '🔒' : '🔓'}</button>`;
 
@@ -771,7 +883,7 @@ function advDistrictHTML(d, alwaysFull, hideHead) {
       <td>Total mostrado</td>
       <td class="adv-num">${advNum(sumVotes)}</td>
       <td class="adv-num">${advPct(d.validVotes > 0 ? sumVotes / d.validVotes * 100 : 0)}</td>
-      <td class="adv-num">${sumSeats} / ${d.seats}</td>
+      <td class="adv-num">${sumSeats} / ${seatsShown}</td>
       ${showReal ? '<td></td>' : ''}
     </tr></tfoot>` : '';
 
@@ -1733,7 +1845,10 @@ function advInit() {
 
   ['#adv-level', '#adv-formula', '#adv-b1-on', '#adv-b1-level', '#adv-b1-val',
    '#adv-b2-on', '#adv-b2-level', '#adv-b2-val', '#adv-blanco',
-   '#adv-seats-mode', '#adv-total-seats', '#adv-min-seats', '#adv-reparto-base'
+   '#adv-seats-mode', '#adv-total-seats', '#adv-min-seats', '#adv-reparto-base',
+   '#adv-bono-on', '#adv-bono-modo', '#adv-bono-seats',
+   '#adv-extra-ccaa', '#adv-extra-ccaa-seats',
+   '#adv-extra-nacional', '#adv-extra-nacional-seats'
   ].forEach(sel => {
     const el = select(sel);
     if (el) el.addEventListener('change', advOnConfigChange);

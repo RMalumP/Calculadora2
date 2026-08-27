@@ -1213,3 +1213,53 @@ tr.drag-over-below td { box-shadow: inset 0 -2px 0 var(--accent); }
   background: rgba(255,255,255,0.12);
   border-color: rgba(255,255,255,0.4);
 }
+
+/* ── CIRCUNSCRIPCIONES AÑADIDAS ──────────────────────────────
+   Se superponen a la base, así que van en su propia tarjeta y con un
+   distintivo lateral que las separa del mapa de circunscripciones. */
+.adv-extra-note {
+  padding: 7px 12px;
+  font-size: 0.7rem;
+  font-style: italic;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-light);
+}
+.adv-extra-tier {
+  border-left: 3px solid var(--accent);
+  margin: 8px 10px 10px;
+}
+.adv-extra-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 5px 10px;
+  background: var(--accent-bg);
+}
+.adv-extra-name {
+  font-weight: 700;
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.adv-extra-meta {
+  margin-left: auto;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Distintivo de los escaños que suma el bono de mayoría. */
+.adv-bono-tag {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-pale);
+  color: var(--accent);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}

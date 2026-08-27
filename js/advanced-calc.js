@@ -38,8 +38,36 @@ function advDefaultConfig(meta) {
     seatsMode: 'sheet',      // 'sheet' | 'custom'
     totalSeats: 350,
     minPorCircunscripcion: meta?.minimoDefault != null ? meta.minimoDefault : 2,
-    repartoBase: 'poblacion' // 'poblacion' | 'censo'
+    repartoBase: 'poblacion', // 'poblacion' | 'censo'
+    // Añadidos que no trae la hoja: apagados mientras nadie los encienda.
+    bono: { activa: false, escanos: 0, modo: 'incluido' }, // 'incluido' | 'extra'
+    extras: {
+      ccaa:     { activa: false, escanos: 0 },
+      nacional: { activa: false, escanos: 0 }
+    }
   };
+}
+
+/* ── Circunscripciones adicionales ─────────────────────────── */
+
+/**
+ * Niveles que se pueden superponer a cada circunscripción base. Sólo caben
+ * los que estén por encima: sobre las provincias, la comunidad y el Estado;
+ * sobre las comunidades, sólo el Estado.
+ */
+const ADV_EXTRA_LEVELS = {
+  provincia: ['ccaa', 'nacional'],
+  ccaa:      ['nacional'],
+  nacional:  []
+};
+
+const ADV_EXTRA_LABEL = { ccaa: 'autonómica', nacional: 'estatal' };
+
+/** Niveles adicionales encendidos y con escaños, para la base elegida. */
+function advActiveExtras(config) {
+  return (ADV_EXTRA_LEVELS[config.circunscripcion] || [])
+    .map(nivel => ({ nivel, ...(config.extras?.[nivel] || {}) }))
+    .filter(e => e.activa && (parseInt(e.escanos) || 0) > 0);
 }
 
 /* ── Construcción de circunscripciones ─────────────────────── */
@@ -268,6 +296,78 @@ function advApportionSeats(districts, config, lockedSeats) {
   return { total, warning: null };
 }
 
+/**
+ * Agrupa las circunscripciones base en las de un nivel superior, para montar
+ * encima una circunscripción adicional.
+ *
+ * Se parte de las base ya calculadas, no de las filas de la hoja, para que los
+ * votos que se hayan cambiado a mano cuenten también arriba: si se le quitan
+ * votos a una provincia, el nivel de encima tiene que notarlo.
+ */
+function advAggregateDistricts(base, nivel, data) {
+  const groups = new Map();
+  base.forEach(d => {
+    const key = nivel === 'nacional' ? '__pais__' : (d.ccaaName || d.name);
+    let g = groups.get(key);
+    if (!g) {
+      g = {
+        id: `__extra_${nivel}__${key}`,
+        name: nivel === 'nacional' ? (data.meta?.pais || 'Total nacional') : key,
+        ccaaName: nivel === 'nacional' ? '' : key,
+        ccaaCode: d.ccaaCode,
+        extra: true, nivel,
+        seatsBase: 0, seats: 0,
+        poblacion: 0, censoTotal: 0, votantesTotal: 0,
+        votosValidos: 0, votosBlanco: 0, votosNulos: 0,
+        numRows: 0, minAjuste: 0,
+        partyVotes: new Map(), realSeats: new Map(), members: []
+      };
+      groups.set(key, g);
+    }
+    g.poblacion     += d.poblacion;
+    g.censoTotal    += d.censoTotal;
+    g.votantesTotal += d.votantesTotal;
+    g.votosValidos  += d.votosValidos;
+    g.votosBlanco   += d.votosBlanco;
+    g.votosNulos    += d.votosNulos;
+    g.numRows       += d.numRows || 1;
+    d.partyVotes.forEach((v, k) => g.partyVotes.set(k, (g.partyVotes.get(k) || 0) + v));
+    g.members.push(d.name);
+  });
+  return [...groups.values()];
+}
+
+/**
+ * Reparte los escaños de una circunscripción adicional. No lleva mínimo: son
+ * escaños que se suman a los de la base, y el mínimo ya está garantizado allí.
+ * Con un solo destino se los lleva todos; con varios, por resto mayor sobre
+ * población o censo, igual que el reparto principal.
+ */
+function advApportionExtra(districts, total, base) {
+  const n = districts.length;
+  districts.forEach(d => { d.seats = 0; });
+  if (!n || total <= 0) return;
+  if (n === 1) { districts[0].seats = total; return; }
+
+  const basis = districts.map(d => (base === 'censo' ? d.censoTotal : d.poblacion) || 0);
+  const basisSum = basis.reduce((a, b) => a + b, 0);
+  if (basisSum <= 0) {
+    for (let i = 0; i < total; i++) districts[i % n].seats++;
+    return;
+  }
+
+  const quota = basisSum / total;
+  const exact = basis.map(b => b / quota);
+  const floors = exact.map(Math.floor);
+  let assigned = floors.reduce((a, b) => a + b, 0);
+  const order = exact
+    .map((e, i) => ({ i, rem: e - floors[i] }))
+    .sort((a, b) => b.rem - a.rem || basis[b.i] - basis[a.i]);
+  let k = 0;
+  while (assigned < total && order.length) { floors[order[k % order.length].i]++; assigned++; k++; }
+  districts.forEach((d, i) => { d.seats = floors[i]; });
+}
+
 /* ── Barreras electorales ──────────────────────────────────── */
 
 /** Votos válidos de referencia para el denominador de la barrera. */
@@ -339,6 +439,60 @@ function advComputeEligibility(districts, config, locks) {
 /* ── Asignación de escaños ─────────────────────────────────── */
 
 /**
+ * Reparte los escaños de una circunscripción entre sus candidaturas y deja el
+ * resultado colgado de ella. Lo usan por igual las circunscripciones base y
+ * las adicionales, para que compartan fórmula, barreras y bono.
+ *
+ * El bono de mayoría funciona dentro de cada circunscripción, como en la
+ * calculadora básica: «incluido» lo descuenta de los escaños que se reparten,
+ * y «extra» lo añade por encima.
+ */
+function advAllocateDistrict(d, { config, edits, locks, partyMeta, eligibility, blockedBy }) {
+  const removedKeys = new Set(edits?.[d.id]?.removed || []);
+  const editedKeys = new Set(
+    Object.keys(edits?.[d.id]?.votes || {}).filter(k => !removedKeys.has(k)));
+  const ok = eligibility.get(d.id);
+  const contenders = [...d.partyVotes.entries()]
+    .filter(([k, v]) => v > 0 && ok.has(k))
+    .map(([k, v]) => ({ key: k, name: partyMeta.get(k)?.name || k, siglas: partyMeta.get(k)?.siglas || '', votes: v }));
+
+  const formula = advEffectiveConfig(config, locks, d.id).formula;
+  const bono = config.bono?.activa ? Math.max(0, parseInt(config.bono.escanos) || 0) : 0;
+  const bonoExtra = bono > 0 && config.bono?.modo === 'extra';
+  const aRepartir = bonoExtra ? d.seats : Math.max(0, d.seats - bono);
+
+  const allocated = aRepartir > 0 && contenders.length
+    ? allocateSeats(contenders, aRepartir, formula)
+    : contenders.map(p => ({ ...p, seats: 0 }));
+  if (bono > 0 && contenders.length) applyBonus(allocated, bono);
+
+  d.formulaUsada = formula;
+  // Los que suma el bono por encima del tamaño de la circunscripción: en el
+  // modo «incluido» salen de dentro, así que no agrandan nada.
+  d.bonoSeats = bonoExtra && contenders.length ? bono : 0;
+
+  const seatsByKey = new Map(allocated.map(p => [p.key, p.seats]));
+  const validVotes = _advValidVotes(d, config);
+  const blocked    = blockedBy.get(d.id);
+
+  d.validVotes = validVotes;
+  d.results = [...d.partyVotes.entries()]
+    .filter(([k, v]) => v > 0 || editedKeys.has(k))
+    .map(([k, v]) => ({
+      key: k,
+      name:   partyMeta.get(k)?.name || k,
+      siglas: partyMeta.get(k)?.siglas || '',
+      votes:  v,
+      pct:    validVotes > 0 ? v / validVotes * 100 : 0,
+      seats:  seatsByKey.get(k) || 0,
+      realSeats: d.realSeats.get(k) || 0,
+      blockedReason: blocked.get(k) || null
+    }))
+    .sort((a, b) => b.seats - a.seats || b.votes - a.votes);
+  d.assignedSeats = d.results.reduce((s, p) => s + p.seats, 0);
+}
+
+/**
  * Calcula el reparto completo. Devuelve las circunscripciones con resultados,
  * el recuento nacional por partido y los avisos detectados.
  */
@@ -365,45 +519,38 @@ function advCalculate(data, config, edits, locks) {
 
   const partyMeta = new Map(data.parties.map(p => [p.key, p]));
 
-  districts.forEach(d => {
-    const removedKeys = new Set(edits?.[d.id]?.removed || []);
-    const editedKeys = new Set(
-      Object.keys(edits?.[d.id]?.votes || {}).filter(k => !removedKeys.has(k)));
-    const ok = eligibility.get(d.id);
-    const contenders = [...d.partyVotes.entries()]
-      .filter(([k, v]) => v > 0 && ok.has(k))
-      .map(([k, v]) => ({ key: k, name: partyMeta.get(k)?.name || k, siglas: partyMeta.get(k)?.siglas || '', votes: v }));
+  districts.forEach(d =>
+    advAllocateDistrict(d, { config, edits, locks, partyMeta, eligibility, blockedBy }));
 
-    const formula = advEffectiveConfig(config, locks, d.id).formula;
-    const allocated = d.seats > 0 && contenders.length
-      ? allocateSeats(contenders, d.seats, formula)
-      : contenders.map(p => ({ ...p, seats: 0 }));
-    d.formulaUsada = formula;
-
-    const seatsByKey = new Map(allocated.map(p => [p.key, p.seats]));
-    const validVotes = _advValidVotes(d, config);
-    const blocked    = blockedBy.get(d.id);
-
-    d.validVotes = validVotes;
-    d.results = [...d.partyVotes.entries()]
-      .filter(([k, v]) => v > 0 || editedKeys.has(k))
-      .map(([k, v]) => ({
-        key: k,
-        name:   partyMeta.get(k)?.name || k,
-        siglas: partyMeta.get(k)?.siglas || '',
-        votes:  v,
-        pct:    validVotes > 0 ? v / validVotes * 100 : 0,
-        seats:  seatsByKey.get(k) || 0,
-        realSeats: d.realSeats.get(k) || 0,
-        blockedReason: blocked.get(k) || null
-      }))
-      .sort((a, b) => b.seats - a.seats || b.votes - a.votes);
-    d.assignedSeats = d.results.reduce((s, p) => s + p.seats, 0);
+  // ── Circunscripciones adicionales, superpuestas a la base ──
+  const extras = advActiveExtras(config).map(({ nivel, escanos }) => {
+    const tier = advAggregateDistricts(districts, nivel, data);
+    advApportionExtra(tier, parseInt(escanos) || 0, config.repartoBase);
+    const elig = advComputeEligibility(tier, config, locks);
+    tier.forEach(d => advAllocateDistrict(d, {
+      config, edits: null, locks, partyMeta,
+      eligibility: elig.eligibility, blockedBy: elig.blockedBy
+    }));
+    return { nivel, districts: tier };
   });
+  const extraDistricts = extras.flatMap(e => e.districts);
 
   // ── Recuento nacional ──
   const totals = new Map();
   let totalValid = 0, totalBlanco = 0, totalNulos = 0, totalCenso = 0, totalVotantes = 0, totalSeats = 0;
+
+  let baseSeats = 0;
+
+  const sumarEscanos = (p, key) => {
+    let t = totals.get(key);
+    if (!t) {
+      t = { key, name: p.name, siglas: p.siglas, votes: 0, seats: 0, realSeats: 0, districts: 0 };
+      totals.set(key, t);
+    }
+    t.seats += p.seats;
+    if (p.seats > 0) t.districts++;
+    return t;
+  };
 
   districts.forEach(d => {
     totalValid    += d.validVotes;
@@ -411,18 +558,20 @@ function advCalculate(data, config, edits, locks) {
     totalNulos    += d.votosNulos;
     totalCenso    += d.censoTotal;
     totalVotantes += d.votantesTotal;
-    totalSeats    += d.seats;
+    totalSeats    += d.seats + (d.bonoSeats || 0);
+    baseSeats     += d.seats + (d.bonoSeats || 0);
     d.results.forEach(p => {
-      let t = totals.get(p.key);
-      if (!t) {
-        t = { key: p.key, name: p.name, siglas: p.siglas, votes: 0, seats: 0, realSeats: 0, districts: 0 };
-        totals.set(p.key, t);
-      }
+      const t = sumarEscanos(p, p.key);
       t.votes += p.votes;
-      t.seats += p.seats;
       t.realSeats += p.realSeats;
-      if (p.seats > 0) t.districts++;
     });
+  });
+
+  // Las adicionales sólo aportan escaños: sus votos son los mismos de la base
+  // agregados, así que sumarlos otra vez contaría a todo el mundo dos veces.
+  extraDistricts.forEach(d => {
+    totalSeats += d.seats + (d.bonoSeats || 0);
+    d.results.forEach(p => sumarEscanos(p, p.key));
   });
 
   const national = [...totals.values()].map(t => {
@@ -457,11 +606,11 @@ function advCalculate(data, config, edits, locks) {
   const disproportion = advGallagherIndex(national);
 
   return {
-    districts, national, warnings, config,
+    districts, extras, national, warnings, config,
     summary: {
-      totalSeats, totalValid, totalBlanco, totalNulos, totalCenso, totalVotantes,
+      totalSeats, baseSeats, totalValid, totalBlanco, totalNulos, totalCenso, totalVotantes,
       participacion: totalCenso > 0 ? totalVotantes / totalCenso * 100 : 0,
-      numDistricts: districts.length,
+      numDistricts: districts.length + extraDistricts.length,
       gallagher: disproportion
     }
   };
