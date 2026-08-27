@@ -67,6 +67,12 @@ function advMesLabel(mes) {
   return ADV_MESES[n] || (mes ? String(mes) : '');
 }
 
+/** Fecha de una convocatoria: «23 de julio de 2023», con lo que haya. */
+function advFechaLarga({ dia, mes, anio } = {}) {
+  const diaMes = [dia, advMesLabel(mes)].filter(Boolean).join(' de ');
+  return [diaMes, anio].filter(Boolean).join(' de ');
+}
+
 function advPartyColor(p) {
   if (p.key && _advPartyColors[p.key]) return _advPartyColors[p.key];
   const k = (p.siglas || p.name || '').toUpperCase();
@@ -89,23 +95,39 @@ function advEscape(s) {
 
 /* ── Carga de datos ────────────────────────────────────────── */
 
-async function advLoadElection(force) {
+/**
+ * Trae una elección del ámbito abierto y la deja calculada.
+ *
+ * Sólo se descargan las filas de esa elección: la pestaña de un país reúne
+ * todas sus convocatorias, y bajarlas enteras para quedarse con una sería
+ * traer miles de filas para usar unas decenas. La lista de convocatorias sale
+ * de un índice aparte, que pide nada más las columnas de la fecha.
+ *
+ * @param force        vuelve a preguntar a Google en vez de usar lo guardado
+ * @param eleccionKey  convocatoria concreta; si falta, la última del ámbito
+ * @param conservar    mantiene los cambios de sesión (al cambiar de
+ *                     convocatoria dentro del mismo ámbito no se conservan:
+ *                     se refieren a circunscripciones de otra elección)
+ */
+async function advLoadElection(force, eleccionKey, conservar) {
   if (_advLoading) return;
   _advLoading = true;
   if (force) advClearCache();
 
-  // Los cambios de sesión se refieren a los datos que se van a sustituir.
-  _advEdits = {};
-  _advCustomParties = {};
-  _advPartyColors = {};
-  _advLocks = {};
+  if (!conservar) {
+    // Los cambios de sesión se refieren a los datos que se van a sustituir.
+    _advEdits = {};
+    _advCustomParties = {};
+    _advPartyColors = {};
+    _advLocks = {};
+  }
   const key = select('#adv-election')?.value || ADV_ELECTIONS[0].key;
   advRenderStatus(`<div class="adv-loading"><span class="adv-spinner"></span>Cargando datos electorales…</div>`);
   select('#adv-results').innerHTML = '';
   select('#adv-summary').innerHTML = '';
 
   try {
-    _advParties = await advGetElectionData(key);
+    _advParties = await advGetElectionData(key, eleccionKey);
     _advLoaded = true;
 
     if (!_advParties.rows.length) {
@@ -113,9 +135,9 @@ async function advLoadElection(force) {
       return;
     }
 
-    const defaultYearKey = advBuildYearSelect(_advParties);
+    const elegida = advBuildYearSelect(_advParties);
     _advConfig = advDefaultConfig(_advParties.meta);
-    _advConfig.yearKey = defaultYearKey;
+    _advConfig.yearKey = elegida;
     advSyncConfigToForm();
     advRun();
   } catch (err) {
@@ -210,54 +232,57 @@ function advRenderStatus(html) {
  * para que el desplegable muestre una única entrada por convocatoria, no una
  * por cada fila/provincia.
  */
+/**
+ * Convocatorias del ámbito abierto. Vienen del índice ligero, no de las filas
+ * cargadas: en memoria sólo está la elección elegida, y el desplegable tiene
+ * que ofrecer todas las de la pestaña.
+ */
 function advElectionDates(data) {
-  const map = new Map();
-  data.rows.forEach(r => {
-    if (!r.anio) return;
-    const key = `${r.anio}|${r.mes || ''}`;
-    if (!map.has(key)) map.set(key, { key, anio: r.anio, mes: r.mes || '' });
-  });
-  return [...map.values()].sort((a, b) =>
-    String(a.anio).localeCompare(String(b.anio), 'es', { numeric: true }) ||
-    (parseInt(a.mes, 10) || 0) - (parseInt(b.mes, 10) || 0));
+  return data?.elecciones || [];
 }
 
-/** Repuebla el desplegable de convocatoria y devuelve la clave a seleccionar por defecto. */
+/**
+ * Cómo se nombra una convocatoria en el desplegable: la fecha completa, que es
+ * lo que de verdad la distingue —hay años con dos—, y la clase de elección,
+ * porque una misma pestaña puede reunir generales y municipales.
+ */
+function advElectionLabel(e) {
+  const clase = [e.familia, e.tipoEleccion].filter(Boolean).join(' · ');
+  const fecha = advFechaLarga(e) || String(e.anio);
+  return clase ? `${fecha} · ${clase}` : fecha;
+}
+
+/** Repuebla el desplegable de convocatoria y devuelve la clave seleccionada. */
 function advBuildYearSelect(data) {
   const dates = advElectionDates(data);
+  const actual = data?.eleccion?.key || dates[dates.length - 1]?.key || '';
   const sel = select('#adv-year');
-  if (!sel) return dates[dates.length - 1]?.key || '';
-
-  const sameYear = new Map();
-  dates.forEach(d => sameYear.set(d.anio, (sameYear.get(d.anio) || 0) + 1));
+  if (!sel) return actual;
 
   sel.innerHTML = '';
   dates.forEach(d => {
     const o = document.createElement('option');
     o.value = d.key;
-    const mesLabel = advMesLabel(d.mes);
-    o.textContent = (sameYear.get(d.anio) > 1 && mesLabel)
-      ? `${d.anio} (${mesLabel})`
-      : String(d.anio);
+    o.textContent = advElectionLabel(d);
     sel.appendChild(o);
   });
+  if (actual) sel.value = actual;
 
   updateText(select('#adv-year-hint'),
     dates.length > 1
-      ? 'Hay más de una convocatoria; elige cuál calcular.'
+      ? `${dates.length} convocatorias en esta pestaña; se descarga sólo la elegida.`
       : 'Sólo hay una convocatoria disponible.');
   setDisplay(select('#adv-year-field'), true);
   sel.disabled = dates.length <= 1;
 
-  return dates[dates.length - 1]?.key || '';
+  return actual;
 }
 
 function advUpdateHeader(rows) {
   const m = _advParties?.meta;
   if (!m) return;
   const partes = [m.tipo, m.subtipo].filter(Boolean).join(' · ');
-  const first = rows[0];
-  const fecha = first ? [first.anio, advMesLabel(first.mes)].filter(Boolean).join(' de ') : '';
+  const fecha = advFechaLarga(_advParties.eleccion || rows[0]);
   updateText(select('#adv-subtitle'),
     `${partes}${m.pais ? ' · ' + m.pais.charAt(0).toUpperCase() + m.pais.slice(1) : ''}${fecha ? ' · ' + fecha : ''} · ` +
     `${rows.length} circunscripciones de origen · ${_advParties.parties.length} candidaturas`);
@@ -265,9 +290,12 @@ function advUpdateHeader(rows) {
 
 /** Filas de la elección seleccionada en el desplegable de convocatoria. */
 function advSelectedRows() {
+  // Cargadas ya vienen sólo las de la convocatoria elegida, que es lo que
+  // evita descargar la pestaña entera. El filtro queda por si alguna pestaña
+  // devolviera más de una: mejor calcular una que mezclarlas.
   const key = _advConfig?.yearKey;
   if (!key) return _advParties.rows;
-  const filtered = _advParties.rows.filter(r => `${r.anio}|${r.mes || ''}` === key);
+  const filtered = _advParties.rows.filter(r => advElectionKey(r) === key);
   return filtered.length ? filtered : _advParties.rows;
 }
 
@@ -364,8 +392,12 @@ function advUpdateSummaries() {
   if (!c) return;
 
   const yearSel = select('#adv-year');
+  // El resumen se pliega en una línea, así que basta con el ámbito y la fecha:
+  // la clase de elección ya sale en el subtítulo de la página.
+  const e = _advParties?.eleccion;
   updateText(select('#adv-sum-eleccion'),
-    [select('#adv-election')?.selectedOptions[0]?.textContent, yearSel?.selectedOptions[0]?.textContent]
+    [select('#adv-election')?.selectedOptions[0]?.textContent,
+     e ? advFechaLarga(e) : yearSel?.selectedOptions[0]?.textContent]
       .filter(Boolean).join(' · ') || '—');
 
   const formulaName = FORMULAS.find(f => f.id === c.formula)?.name || c.formula;
@@ -1413,10 +1445,13 @@ function advRenderMetaDialog() {
       <h4>Elección</h4>
       ${dl([
         ['Identificador', advEscape(m.idEleccion || '—')],
-        ['Tipo', advEscape(m.tipo || '—')],
-        ['Subtipo', advEscape(m.subtipo || '—')],
+        ['Clase', advEscape(m.tipo || '—')],
+        ['Tipo', advEscape(m.subtipo || '—')],
         ['País', advEscape(m.pais || '—')],
-        ['Convocatorias en la hoja', dates.map(d => advEscape(`${d.anio}${d.mes ? ' · ' + advMesLabel(d.mes) : ''}`)).join(', ') || '—'],
+        ['Fecha', advEscape(advFechaLarga(_advParties.eleccion || rows[0]) || '—')],
+        ['Convocatorias en la pestaña', dates.length
+          ? `${dates.length}<br><small style="opacity:.7">${dates.map(d => advEscape(advElectionLabel(d))).join('<br>')}</small>`
+          : '—'],
       ])}
     </section>
     <section>
@@ -1455,6 +1490,8 @@ function advRenderMetaDialog() {
       <h4>Lectura de la hoja</h4>
       ${dl([
         ['Versión del lector', advEscape(dbg.parserVersion || '—')],
+        ['Pestaña', advEscape(dbg.hojaUsada || '—')],
+        ['Consulta', dbg.consulta ? `<code>${advEscape(dbg.consulta)}</code>` : '—'],
         ['Filas recibidas', dbg.totalRowsFromSheet ?? '—'],
         ['Columnas', dbg.numCols ?? '—'],
         ['Cabecera desde etiquetas', dbg.headerFromLabels ? 'sí' : 'no'],
@@ -1549,11 +1586,18 @@ async function advApplySession(s) {
     throw new Error('El archivo no es una sesión de la calculadora avanzada.');
   }
 
-  const eleccion = select('#adv-election');
-  const cambiaEleccion = !!s.eleccion && eleccion && eleccion.value !== s.eleccion;
-  if (cambiaEleccion) eleccion.value = s.eleccion;
-  // Recargar vacía los cambios de sesión, así que se hace antes de reponerlos.
-  if (cambiaEleccion || !_advLoaded) await advLoadElection(false);
+  const ambito = select('#adv-election');
+  const convocatoria = s.config?.yearKey || '';
+  const cambiaAmbito = !!s.eleccion && ambito && ambito.value !== s.eleccion;
+  const cambiaConvocatoria = !!convocatoria && convocatoria !== _advParties?.eleccion?.key;
+  if (cambiaAmbito) ambito.value = s.eleccion;
+
+  // De la pestaña sólo está descargada una convocatoria, así que si la sesión
+  // se guardó con otra hay que traerla. Recargar vacía los cambios de sesión,
+  // de modo que se hace antes de reponerlos.
+  if (cambiaAmbito || cambiaConvocatoria || !_advLoaded) {
+    await advLoadElection(false, convocatoria || undefined);
+  }
   if (!_advLoaded || !_advParties) {
     throw new Error('No se han podido cargar los datos de la elección guardada.');
   }
@@ -1687,7 +1731,7 @@ function advInit() {
   advInitMetaDialog();
   advInitSessionButtons();
 
-  ['#adv-year', '#adv-level', '#adv-formula', '#adv-b1-on', '#adv-b1-level', '#adv-b1-val',
+  ['#adv-level', '#adv-formula', '#adv-b1-on', '#adv-b1-level', '#adv-b1-val',
    '#adv-b2-on', '#adv-b2-level', '#adv-b2-val', '#adv-blanco',
    '#adv-seats-mode', '#adv-total-seats', '#adv-min-seats', '#adv-reparto-base'
   ].forEach(sel => {
@@ -1695,7 +1739,13 @@ function advInit() {
     if (el) el.addEventListener('change', advOnConfigChange);
   });
 
-  select('#adv-reload')?.addEventListener('click', () => advLoadElection(true));
+  // Cambiar de convocatoria ya no es filtrar en memoria: hay que traer sus
+  // filas, que es lo único que se ha descargado de la pestaña.
+  select('#adv-year')?.addEventListener('change', () =>
+    advLoadElection(false, select('#adv-year').value));
+
+  select('#adv-reload')?.addEventListener('click', () =>
+    advLoadElection(true, select('#adv-year')?.value));
   select('#adv-election')?.addEventListener('change', () => advLoadElection(false));
   select('#adv-reset')?.addEventListener('click', () => {
     if (!_advParties) return;

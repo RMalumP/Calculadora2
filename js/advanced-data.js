@@ -29,37 +29,35 @@ const ADV_PARSER_VERSION = '2025-sistema-electoral';
 console.log('[Calculadora avanzada] advanced-data.js versión', ADV_PARSER_VERSION);
 
 /**
- * Registro de hojas (elecciones) disponibles.
+ * Ámbitos disponibles: una pestaña por país, más las que tengan censo propio
+ * como el Parlamento Europeo. Dentro de cada una caben todas sus elecciones,
+ * que se distinguen por su fecha.
  *
- * «candidatas» son las señas con que se va a buscar la pestaña de resultados,
- * en orden, hasta que una devuelva filas de datos. Se prueban varias porque el
- * documento tiene más de una pestaña y la de resultados no es la primera: la
- * primera es el libro de códigos, que se lee sin error pero no tiene ni
- * candidaturas ni circunscripciones. Sin gid explícito Google sirve la primera,
- * así que pedirla a ciegas devuelve el libro de códigos.
+ * «candidatas» son las señas con que se busca la pestaña, en orden, hasta que
+ * una devuelva datos. Se prueban varias porque el documento tiene más de una
+ * pestaña y sin gid explícito Google sirve la primera, que es el libro de
+ * códigos: se lee sin dar error pero no tiene ni candidaturas ni
+ * circunscripciones.
  *
- * Para fijar una pestaña sin tanteo: ábrela en Google Sheets, copia el número
- * que sale en la URL detrás de «gid=» y déjalo como única candidata.
+ * Para añadir un ámbito: abre su pestaña en Google Sheets, copia el número que
+ * sale en la URL detrás de «gid=» y añade una entrada aquí.
  */
 const ADV_ELECTIONS = [
   {
-    key: 'default',
-    label: 'Generales · Congreso',
+    key: 'es',
+    label: 'España',
     candidatas: [
-      { gid: 0 },                       // la pestaña original del documento
-      { sheet: 'Generales. España.' },  // por nombre, tal como se exporta
-      { sheet: 'Generales. España' },
-      { sheet: 'Generales España' },
-      { sheet: 'Generales' },
-      {}                                // la primera, como último recurso
+      { gid: 0 },
+      { sheet: 'España.' },   // por nombre, tal como se exporta
+      { sheet: 'España' }
     ]
   }
 ];
 
 /**
- * ¿La hoja leída sirve como elección? El libro de códigos y cualquier otra
- * pestaña auxiliar se leen sin dar error, así que la comprobación es que haya
- * salido algo con lo que calcular.
+ * ¿La pestaña leída sirve como elección? El libro de códigos y cualquier otra
+ * auxiliar se leen sin dar error, así que la comprobación es que haya salido
+ * algo con lo que calcular.
  */
 function advTablaUtil(data) {
   return !!(data && data.rows.length && data.parties.length);
@@ -72,13 +70,12 @@ function advTablaUtil(data) {
  * electoral 1»).
  */
 const ADV_HEADER_MAP = {
-  'id eleciones':                  'idEleccion',
-  'id elecciones':                 'idEleccion',
   'ano eleccion':                  'anio',
   'mes eleccion':                  'mes',
   'dia eleccion':                  'dia',
   'pais':                          'pais',
   'tipo de eleccion':              'tipoEleccion',
+  'clase de eleccion':             'familia',
   'circuscripcion magnitud':       'magnitud',
   'circunscripcion magnitud':      'magnitud',
   'circuscripcion base':           'circBase',
@@ -254,6 +251,7 @@ function advFetchTable(target, opts = {}) {
                 `?tqx=out:json;responseHandler:${cb}` +
                 (seNas.gid != null ? `&gid=${encodeURIComponent(seNas.gid)}` : '') +
                 (seNas.sheet ? `&sheet=${encodeURIComponent(seNas.sheet)}` : '') +
+                (opts.tq ? `&tq=${encodeURIComponent(opts.tq)}` : '') +
                 `&headers=${encodeURIComponent(headers)}`;
 
     const script = document.createElement('script');
@@ -385,6 +383,16 @@ function advParseTable(table) {
       else metaCols.provCode = c;
       continue;
     }
+    // «ID eleciones» aparece dos veces con la misma grafía a efectos de
+    // comparación: la primera es el identificador de la fila (ES23.7) y la
+    // segunda la clase de elección (Generales). Se reparten por orden, que es
+    // más firme que fiarse de dónde está la letra que las diferencia.
+    if (/^id elec+iones$/.test(h)) {
+      if (metaCols.idEleccion === undefined) metaCols.idEleccion = c;
+      else if (metaCols.familia === undefined) metaCols.familia = c;
+      continue;
+    }
+
     if (ADV_HEADER_MAP[h] !== undefined && metaCols[ADV_HEADER_MAP[h]] === undefined) {
       metaCols[ADV_HEADER_MAP[h]] = c;
     }
@@ -473,7 +481,9 @@ function advParseTable(table) {
   const prorrateo   = metaNum('prorrateo');
 
   const meta = {
-    tipo:    'Generales',
+    // La clase de elección la declara la hoja («Generales», «Europeas»…); antes
+    // se daba por supuesto que todo eran generales.
+    tipo:    metaAt('familia') || 'Generales',
     subtipo: metaAt('tipoEleccion') || '',
     pais:    metaAt('pais') || 'España',
     idEleccion: metaAt('idEleccion') || '',
@@ -537,48 +547,190 @@ function _advSenasLabel(s) {
   return 'la primera pestaña';
 }
 
-/**
- * Busca la pestaña de resultados entre las candidatas y devuelve la primera
- * que traiga datos. Las que no existen dan error de Google y las auxiliares
- * —el libro de códigos— se leen bien pero salen vacías: ambas se descartan y
- * se sigue con la siguiente, en vez de dar por buena una hoja sin elección.
- */
-async function advGetElectionData(electionKey) {
-  if (_advCache[electionKey]) return _advCache[electionKey];
-  const cfg = ADV_ELECTIONS.find(e => e.key === electionKey) || ADV_ELECTIONS[0];
-  const candidatas = cfg.candidatas?.length ? cfg.candidatas : [{ gid: cfg.gid ?? null }];
+/** Letra de columna del lenguaje de consulta de Google: 0 → A, 26 → AA. */
+function _advColLetter(i) {
+  let s = '';
+  for (let n = i; n >= 0; n = Math.floor(n / 26) - 1) s = String.fromCharCode(65 + (n % 26)) + s;
+  return s;
+}
 
+/** Valor listo para una comparación en la consulta, según el tipo de columna. */
+function _advQueryValue(v, tipo) {
+  if (tipo === 'number') return String(parseFloat(String(v).replace(/[^\d.-]/g, '')) || 0);
+  return `'${String(v).replace(/'/g, "''")}'`;
+}
+
+/* ── Reconocimiento de la pestaña ──────────────────────────── */
+
+/**
+ * Localiza la pestaña de un ámbito y aprende su disposición, pidiendo sólo una
+ * fila. Con eso se sabe en qué columna está cada cosa y se pueden pedir
+ * después consultas ajustadas, en vez de descargar la hoja entera.
+ *
+ * Las pestañas que no existen dan error de Google y las auxiliares —el libro
+ * de códigos— se leen bien pero no traen columnas de elección: ambas se
+ * descartan y se sigue con la siguiente.
+ */
+async function advGetLayout(electionKey) {
+  const cfg = ADV_ELECTIONS.find(e => e.key === electionKey) || ADV_ELECTIONS[0];
+  if (_advCache[cfg.key]?.layout) return _advCache[cfg.key].layout;
+
+  const candidatas = cfg.candidatas?.length ? cfg.candidatas : [{ gid: cfg.gid ?? null }];
   const intentos = [];
-  let ultimoError = null;
-  let primeraLeida = null;
+  let ultimoError = null, primeraLeida = null;
 
   for (const senas of candidatas) {
     const label = _advSenasLabel(senas);
-    let data;
+    let table;
     try {
-      data = advParseTable(await advFetchTable(senas));
+      table = await advFetchTable(senas, { tq: 'select * limit 1' });
     } catch (err) {
       intentos.push(`${label}: ${err.message}`);
       ultimoError = err;
       continue;
     }
-    if (advTablaUtil(data)) {
-      data.debug.hojaUsada = label;
-      data.debug.intentos = intentos;
-      _advCache[electionKey] = data;
-      return data;
+    const layout = _advLeerDisposicion(table, senas, label);
+    if (layout.util) {
+      layout.intentos = intentos;
+      _advGuardarLayout(cfg.key, layout);
+      return layout;
     }
-    intentos.push(`${label}: se lee, pero no tiene filas de elección ` +
-      `(${data.rows.length} filas, ${data.parties.length} candidaturas)`);
-    // Se guarda la primera que sí se haya leído para poder diagnosticarla.
-    if (!primeraLeida) { primeraLeida = data; primeraLeida.debug.hojaUsada = label; }
+    intentos.push(`${label}: se lee, pero no tiene columnas de elección ` +
+      `(${layout.numCols} columnas, ${layout.numParties} candidaturas)`);
+    if (!primeraLeida) primeraLeida = layout;
   }
 
-  if (primeraLeida) {
-    primeraLeida.debug.intentos = intentos;
-    return primeraLeida;
-  }
+  if (primeraLeida) { primeraLeida.intentos = intentos; return primeraLeida; }
   throw ultimoError || new Error('No se ha podido leer ninguna pestaña del documento.');
+}
+
+/** Columnas que identifican una elección dentro de la pestaña de un ámbito. */
+const ADV_INDEX_FIELDS = ['anio', 'mes', 'dia', 'pais', 'familia', 'tipoEleccion'];
+
+function _advLeerDisposicion(table, senas, label) {
+  // Se reutiliza el parseo completo sobre la única fila pedida: así la lectura
+  // de cabeceras es exactamente la misma que la del volcado de verdad.
+  const parsed = advParseTable(table);
+  const cols = parsed.debug.metaCols || {};
+  const tipos = (table?.cols || []).map(c => c?.type || 'string');
+  return {
+    senas, label,
+    cols, tipos,
+    numCols: parsed.debug.numCols,
+    numParties: parsed.debug.numParties,
+    headerRowTexts: parsed.debug.headerRowTexts,
+    // Sirve si se reconocen las columnas con que se distingue una elección.
+    util: cols.anio !== undefined && cols.provName !== undefined && parsed.debug.numParties > 0,
+    intentos: []
+  };
+}
+
+function _advGuardarLayout(key, layout) {
+  _advCache[key] = { ..._advCache[key], layout };
+}
+
+/* ── Índice de elecciones (consulta ligera) ────────────────── */
+
+/** Clave con que se identifica una elección dentro de su ámbito. */
+function advElectionKey(e) {
+  return [e.anio, e.mes, e.dia].join('|');
+}
+
+/**
+ * Lista de elecciones de un ámbito, pidiendo sólo las columnas que las
+ * distinguen y agrupando para que Google devuelva una fila por elección y no
+ * una por circunscripción. Es lo que permite abrir la pestaña sin descargar
+ * miles de filas: hasta que no se elige una, no se pide nada más.
+ */
+async function advGetElectionIndex(electionKey) {
+  const cfg = ADV_ELECTIONS.find(e => e.key === electionKey) || ADV_ELECTIONS[0];
+  if (_advCache[cfg.key]?.index) return _advCache[cfg.key].index;
+
+  const layout = await advGetLayout(cfg.key);
+  if (!layout.util) return { elecciones: [], layout };
+
+  const campos = ADV_INDEX_FIELDS.filter(f => layout.cols[f] !== undefined);
+  const letras = campos.map(f => _advColLetter(layout.cols[f]));
+  const select = letras.join(', ');
+
+  let table;
+  try {
+    // «group by» sobre todas las columnas pedidas devuelve una fila por
+    // elección. Si el ámbito no lo admite, se pide sin agrupar y se deduplica
+    // aquí: sigue siendo mucho menos que la hoja entera.
+    table = await advFetchTable(layout.senas, { tq: `select ${select} group by ${select}` });
+  } catch (err) {
+    table = await advFetchTable(layout.senas, { tq: `select ${select}` });
+  }
+
+  const vistos = new Map();
+  (table?.rows || []).forEach(row => {
+    const val = i => {
+      const cell = row?.c?.[i];
+      if (!cell || cell.v == null) return '';
+      return String(cell.f != null && typeof cell.v !== 'number' ? cell.f : cell.v).trim();
+    };
+    const e = {};
+    campos.forEach((f, i) => { e[f] = val(i); });
+    const anio = parseInt(e.anio, 10);
+    if (!(anio >= 1800 && anio <= 2200)) return;
+    e.anio = String(anio);
+    e.key = advElectionKey(e);
+    if (!vistos.has(e.key)) vistos.set(e.key, e);
+  });
+
+  const elecciones = [...vistos.values()].sort((a, b) =>
+    (parseInt(a.anio, 10) - parseInt(b.anio, 10)) ||
+    ((parseInt(a.mes, 10) || 0) - (parseInt(b.mes, 10) || 0)) ||
+    ((parseInt(a.dia, 10) || 0) - (parseInt(b.dia, 10) || 0)));
+
+  const index = { elecciones, layout };
+  _advCache[cfg.key] = { ..._advCache[cfg.key], index };
+  return index;
+}
+
+/* ── Datos de una elección concreta ────────────────────────── */
+
+/**
+ * Descarga y parsea sólo las filas de una elección. Sin clave se trae la
+ * última del índice, que es con la que abre la pestaña.
+ */
+async function advGetElectionData(electionKey, eleccionKey) {
+  const cfg = ADV_ELECTIONS.find(e => e.key === electionKey) || ADV_ELECTIONS[0];
+  const { elecciones, layout } = await advGetElectionIndex(cfg.key);
+
+  if (!layout.util) {
+    // No se ha encontrado una pestaña con elecciones: se devuelve lo leído
+    // para que el diagnóstico pueda explicar qué ha pasado.
+    const data = advParseTable(await advFetchTable(layout.senas, { tq: 'select * limit 1' }));
+    data.debug.hojaUsada = layout.label;
+    data.debug.intentos = layout.intentos;
+    return data;
+  }
+
+  const elegida = elecciones.find(e => e.key === eleccionKey) || elecciones[elecciones.length - 1];
+  if (!elegida) throw new Error('La pestaña no contiene ninguna elección.');
+
+  const cacheKey = `${cfg.key}::${elegida.key}`;
+  if (_advCache[cacheKey]) return _advCache[cacheKey];
+
+  const cond = ['anio', 'mes', 'dia']
+    .filter(f => layout.cols[f] !== undefined && elegida[f] !== '')
+    .map(f => `${_advColLetter(layout.cols[f])} = ${_advQueryValue(elegida[f], layout.tipos[layout.cols[f]])}`)
+    .join(' and ');
+
+  const data = advParseTable(await advFetchTable(layout.senas,
+    { tq: cond ? `select * where ${cond}` : 'select *' }));
+
+  data.debug.hojaUsada = layout.label;
+  data.debug.intentos = layout.intentos;
+  data.debug.consulta = cond ? `select * where ${cond}` : 'select *';
+  data.debug.eleccionesEnPestana = elecciones.length;
+  data.eleccion = elegida;
+  data.elecciones = elecciones;
+
+  _advCache[cacheKey] = data;
+  return data;
 }
 
 function advClearCache() {
@@ -586,5 +738,8 @@ function advClearCache() {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { advParseTable, advFetchTable, advGetElectionData, advClearCache, ADV_ELECTIONS };
+  module.exports = {
+    advParseTable, advFetchTable, advGetElectionData, advGetElectionIndex,
+    advGetLayout, advElectionKey, advClearCache, ADV_ELECTIONS
+  };
 }

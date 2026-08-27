@@ -53,12 +53,12 @@ registerTab('advanced', 'tab-content', String.raw`
               </header>
               <div class="adv-cfg-content">
                 <div class="adv-field">
-                  <label for="adv-election">Conjunto de datos</label>
+                  <label for="adv-election">Ámbito</label>
                   <div class="adv-select-wrap"><select id="adv-election"></select></div>
-                  <small>Cada conjunto de datos corresponde a una elección.</small>
+                  <small>Cada país tiene su propia hoja de datos.</small>
                 </div>
                 <div class="adv-field" id="adv-year-field">
-                  <label for="adv-year">Año de elección</label>
+                  <label for="adv-year">Convocatoria</label>
                   <div class="adv-select-wrap"><select id="adv-year"></select></div>
                   <small id="adv-year-hint">Si hay más de una convocatoria, elige cuál calcular.</small>
                 </div>
